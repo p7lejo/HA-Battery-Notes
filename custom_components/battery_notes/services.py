@@ -116,6 +116,7 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa
                 translation_placeholders={"source": source_entity_id},
             )
 
+        # Check if entity_id exists in any sub config entry
         for config_entry in call.hass.config_entries.async_loaded_entries(DOMAIN):
             battery_notes_config_entry = cast(BatteryNotesConfigEntry, config_entry)
             if not battery_notes_config_entry.runtime_data.subentry_coordinators:
@@ -165,11 +166,44 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa
             translation_placeholders={"source": device_id},
         )
 
+    # Check if device_id exists in any sub config entry
     for config_entry in call.hass.config_entries.async_loaded_entries(DOMAIN):
         battery_notes_config_entry = cast(BatteryNotesConfigEntry, config_entry)
         if not battery_notes_config_entry.runtime_data.subentry_coordinators:
             continue
 
+        for (
+            coordinator
+        ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
+            if not coordinator.is_orphaned and coordinator.device_id == device_id:
+                coordinator.last_replaced = datetime_replaced
+                await coordinator.async_request_refresh()
+
+                _LOGGER.debug(
+                    "Device %s battery replaced on %s",
+                    device_id,
+                    str(datetime_replaced),
+                )
+
+                call.hass.bus.async_fire(
+                    EVENT_BATTERY_REPLACED,
+                    {
+                        ATTR_DEVICE_ID: coordinator.device_id or "",
+                        ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
+                        ATTR_AREA_NAME: coordinator.area_name,
+                        ATTR_DEVICE_NAME: coordinator.device_name,
+                        ATTR_BATTERY_TYPE_AND_QUANTITY: coordinator.battery_type_and_quantity,
+                        ATTR_BATTERY_TYPE: coordinator.battery_type,
+                        ATTR_BATTERY_QUANTITY: coordinator.battery_quantity,
+                    },
+                )
+
+                _LOGGER.debug(
+                    "Raised event battery replaced %s",
+                    coordinator.device_id,
+                )
+
+                # Found and dealt with, exit
         for coordinator in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
             if not coordinator.is_orphaned and coordinator.device_id == device_id:
                 coordinator.record_battery_replacement(datetime_replaced)

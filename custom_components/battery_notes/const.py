@@ -18,6 +18,9 @@ MANUFACTURER = "@Andrew-CodeChimp"
 LAST_REPLACED = "battery_last_replaced"
 LAST_REPORTED = "battery_last_reported"
 LAST_REPORTED_LEVEL = "battery_last_reported_level"
+BATTERY_REPLACEMENT_COUNT = "battery_replacement_count"
+BATTERY_REPLACEMENT_INTERVAL_DAYS = "battery_replacement_interval_days"
+BATTERY_REPLACEMENT_AVERAGE_DAYS = "battery_replacement_average_days"
 
 DEFAULT_BATTERY_LOW_THRESHOLD = 10
 DEFAULT_BATTERY_INCREASE_THRESHOLD = 25
@@ -105,12 +108,15 @@ WINDOW_SIZE_UNIT_TIME = 2
 
 ISSUE_DEPRECATED_YAML = "deprecated_yaml"
 
-SERVICE_BATTERY_REPLACED_SCHEMA = vol.Schema(
-    {
-        vol.Optional(ATTR_DEVICE_ID): cv.string,
-        vol.Optional(ATTR_SOURCE_ENTITY_ID): cv.string,
-        vol.Optional(SERVICE_DATA_DATE_TIME_REPLACED): cv.datetime,
-    }
+SERVICE_BATTERY_REPLACED_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            vol.Optional(ATTR_DEVICE_ID): cv.string,
+            vol.Optional(ATTR_SOURCE_ENTITY_ID): cv.string,
+            vol.Optional(SERVICE_DATA_DATE_TIME_REPLACED): cv.datetime,
+        }
+    ),
+    cv.has_at_least_one_key(ATTR_DEVICE_ID, ATTR_SOURCE_ENTITY_ID),
 )
 
 SERVICE_CHECK_BATTERY_LAST_REPLACED_SCHEMA = vol.Schema(

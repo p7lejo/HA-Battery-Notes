@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import re
+from copy import copy
 from datetime import datetime
 from types import MappingProxyType
 
@@ -19,7 +20,7 @@ from homeassistant.const import (
     CONF_DEVICE_ID,
     __version__ as HA_VERSION,  # noqa: N812
 )
-from homeassistant.core import HassJob, HomeAssistant, callback
+from homeassistant.core import HassJob, HomeAssistant
 from homeassistant.helpers import (
     config_validation as cv,
     device_registry as dr,
@@ -33,6 +34,7 @@ from homeassistant.helpers.issue_registry import IssueSeverity, async_create_iss
 from homeassistant.helpers.typing import ConfigType
 
 from .common import (
+    async_unhide_source_batteries,
     composite_device_issue_id,
     is_composite_device_id,
     missing_device_issue_id,
@@ -146,6 +148,7 @@ async def async_setup_entry(
 
     domain_config = hass.data[MY_KEY]
     assert domain_config.store
+    download_library = not domain_config.skip_library_download
 
     domain_config.show_all_devices = config_entry.options[CONF_SHOW_ALL_DEVICES]
     domain_config.hide_battery = config_entry.options[CONF_HIDE_BATTERY]
@@ -153,7 +156,7 @@ async def async_setup_entry(
     domain_config.default_battery_low_threshold = config_entry.options[
         CONF_DEFAULT_BATTERY_LOW_THRESHOLD
     ]
-    domain_config.battery_increased_threshod = config_entry.options[
+    domain_config.default_battery_increased_threshold = config_entry.options[
         CONF_DEFAULT_BATTERY_INCREASE_THRESHOLD
     ]
 
@@ -173,7 +176,10 @@ async def async_setup_entry(
     config_entry.runtime_data = BatteryNotesData(
         domain_config=domain_config,
         store=domain_config.store,
-        loaded_subentries=config_entry.subentries.copy(),
+        loaded_subentries={
+            subentry_id: copy(subentry)
+            for subentry_id, subentry in config_entry.subentries.items()
+        },
     )
 
     discovery_manager = DiscoveryManager(hass, domain_config)
@@ -220,13 +226,18 @@ async def async_setup_entry(
         config_entry.add_update_listener(_async_update_listener)
     )
 
-    @callback
+    library_updater = LibraryUpdater(hass)
+    config_entry.async_on_unload(library_updater.async_start_daily_update())
+
     async def _async_delayed_discovery(now: datetime) -> None:  # noqa: ARG001
         """Update the library and do discovery."""
-        library_updater = LibraryUpdater(hass)
+        if download_library:
+            await library_updater.copy_schema()
+            await library_updater.get_library_updates(startup=True)
+        else:
+            _LOGGER.debug("Subentries changed, skipping library download")
 
-        await library_updater.copy_schema()
-        await library_updater.get_library_updates(startup=True)
+        # Always reload from disk, the user library option may have changed
         await hass.data[DATA_LIBRARY].load_libraries()
 
         if domain_config.enable_autodiscovery:
@@ -235,12 +246,16 @@ async def async_setup_entry(
             _LOGGER.debug("Auto discovery disabled")
 
     # Let the system settle a bit before starting discovery
-    async_call_later(
-        hass,
-        DISCOVERY_DELAY,
-        HassJob(
-            _async_delayed_discovery, "battery notes discovery", cancel_on_shutdown=True
-        ),
+    config_entry.async_on_unload(
+        async_call_later(
+            hass,
+            DISCOVERY_DELAY,
+            HassJob(
+                _async_delayed_discovery,
+                "battery notes discovery",
+                cancel_on_shutdown=True,
+            ),
+        )
     )
 
     return True
@@ -259,19 +274,19 @@ async def async_remove_entry(
 ) -> None:
     """Battery Notes integration removed."""
 
+    hide_battery = config_entry.options.get(CONF_HIDE_BATTERY, False)
+
     for subentry in config_entry.subentries.values():
-        if subentry.subentry_id not in config_entry.subentries:
-            await _async_remove_subentry(
-                hass, config_entry, subentry, remove_store_entries=False
-            )
-            ir.async_delete_issue(
-                hass, DOMAIN, missing_device_issue_id(subentry.subentry_id)
-            )
-            ir.async_delete_issue(
-                hass,
-                DOMAIN,
-                composite_device_issue_id(subentry.subentry_id),
-            )
+        ir.async_delete_issue(
+            hass, DOMAIN, missing_device_issue_id(subentry.subentry_id)
+        )
+        ir.async_delete_issue(
+            hass, DOMAIN, composite_device_issue_id(subentry.subentry_id)
+        )
+
+        # The source batteries were hidden in favour of battery plus, show them again
+        if hide_battery and subentry.subentry_type == SUBENTRY_BATTERY_NOTE:
+            async_unhide_source_batteries(hass, subentry.data)
 
 
 async def async_migrate_integration(hass: HomeAssistant, config: ConfigType) -> None:  # noqa: PLR0912, PLR0915
@@ -498,7 +513,7 @@ async def async_migrate_entry(
             r"^(\d+)(?=x)(?:x\s)(\w+$)|([\s\S]+)", config_entry.data[CONF_BATTERY_TYPE]
         )
         if matches:
-            battery_qty = matches.group(1) if matches.group(1) is not None else "1"
+            battery_qty = int(matches.group(1)) if matches.group(1) is not None else 1
             battery_type = (
                 matches.group(2) if matches.group(2) is not None else matches.group(3)
             )
@@ -565,10 +580,14 @@ async def _async_update_listener(
                 hass, config_entry, subentry, remove_store_entries=False
             )
 
-    # Update the config entry with the new sub entries
-    config_entry.runtime_data.loaded_subentries = config_entry.subentries.copy()
-
-    await hass.config_entries.async_reload(config_entry.entry_id)
+    domain_config = config_entry.runtime_data.domain_config
+    domain_config.skip_library_download = (
+        config_entry.runtime_data.loaded_subentries != config_entry.subentries
+    )
+    try:
+        await hass.config_entries.async_reload(config_entry.entry_id)
+    finally:
+        domain_config.skip_library_download = False
 
 
 async def _async_remove_subentry(

@@ -64,6 +64,8 @@ from .const import (
     ATTR_BATTERY_LOW,
     ATTR_BATTERY_LOW_THRESHOLD,
     ATTR_BATTERY_QUANTITY,
+    BATTERY_REPLACEMENT_INTERVAL_DAYS,
+    BATTERY_REPLACEMENT_AVERAGE_DAYS,
     ATTR_BATTERY_TYPE,
     ATTR_BATTERY_TYPE_AND_QUANTITY,
     ATTR_DEVICE_ID,
@@ -144,6 +146,15 @@ async def async_setup_entry(
             entity_type="sensor",
         )
 
+        replacement_count_sensor_entity_description = BatteryNotesSensorEntityDescription(
+            unique_id_suffix="_battery_replacement_count",
+            key="battery_replacement_count",
+            translation_key="battery_replacement_count",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            entity_type="sensor",
+        )
+
         last_replaced_sensor_entity_description = BatteryNotesSensorEntityDescription(
             unique_id_suffix="_battery_last_replaced",
             key="battery_last_replaced",
@@ -162,9 +173,7 @@ async def async_setup_entry(
             translation_key="battery_plus",
             device_class=SensorDeviceClass.BATTERY,
             suggested_display_precision=0
-            if config_entry.options[CONF_ADVANCED_SETTINGS].get(
-                CONF_ROUND_BATTERY, True
-            )
+            if config_entry.options.get(CONF_ROUND_BATTERY, False)
             else 1,
             entity_type="sensor",
             require_device=True,
@@ -188,6 +197,14 @@ async def async_setup_entry(
                 last_replaced_sensor_entity_description,
                 f"{subentry.unique_id}{last_replaced_sensor_entity_description.unique_id_suffix}",
             ),
+            BatteryNotesReplacementCountSensor(
+                hass,
+                config_entry,
+                subentry,
+                replacement_count_sensor_entity_description,
+                coordinator,
+                f"{subentry.unique_id}{replacement_count_sensor_entity_description.unique_id_suffix}",
+            ),
         ]
 
         if coordinator.battery_percentage_template is not None:
@@ -202,9 +219,7 @@ async def async_setup_entry(
                     config_entry.options[CONF_ADVANCED_SETTINGS].get(
                         CONF_ENABLE_REPLACED, True
                     ),
-                    config_entry.options[CONF_ADVANCED_SETTINGS].get(
-                        CONF_ROUND_BATTERY, False
-                    ),
+                    config_entry.options.get(CONF_ROUND_BATTERY, False),
                     coordinator.battery_percentage_template,
                 )
             )
@@ -220,9 +235,7 @@ async def async_setup_entry(
                     config_entry.options[CONF_ADVANCED_SETTINGS].get(
                         CONF_ENABLE_REPLACED, True
                     ),
-                    config_entry.options[CONF_ADVANCED_SETTINGS].get(
-                        CONF_ROUND_BATTERY, False
-                    ),
+                    config_entry.options.get(CONF_ROUND_BATTERY, False),
                 )
             )
 
@@ -358,6 +371,73 @@ class BatteryNotesLastReplacedSensor(BatteryNotesEntity, SensorEntity):
     def native_value(self) -> datetime | None:
         """Return the native value of the sensor."""
         return self._native_value
+
+
+class BatteryNotesReplacementCountSensor(BatteryNotesEntity, SensorEntity):
+    """Represents the number of battery replacements."""
+
+    _attr_should_poll = False
+    entity_description: BatteryNotesSensorEntityDescription
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        config_entry: BatteryNotesConfigEntry,
+        subentry: ConfigSubentry,
+        entity_description: BatteryNotesSensorEntityDescription,
+        coordinator: BatteryNotesSubentryCoordinator,
+        unique_id: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            hass=hass, entity_description=entity_description, coordinator=coordinator
+        )
+        self._attr_unique_id = unique_id
+        self._attr_native_unit_of_measurement = "Wechsel"
+        self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        self._attr_native_value = coordinator.replacement_count
+
+    async def async_added_to_hass(self) -> None:
+        """Handle added to Hass."""
+        await super().async_added_to_hass()
+        self._attr_native_value = self.coordinator.replacement_count
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle coordinator updates."""
+        self._attr_native_value = self.coordinator.replacement_count
+        self.async_write_ha_state()
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return battery replacement lifetime statistics."""
+        entry = (
+            self.coordinator.config_entry.runtime_data.store.async_get_entity(
+                self.coordinator.source_entity_id
+            )
+            if self.coordinator.source_entity_id
+            else self.coordinator.config_entry.runtime_data.store.async_get_device(
+                self.coordinator.device_id
+            )
+        )
+        if not entry:
+            return {}
+
+        attrs: dict[str, Any] = {}
+        interval_days = entry.get(BATTERY_REPLACEMENT_INTERVAL_DAYS)
+        average_days = entry.get(BATTERY_REPLACEMENT_AVERAGE_DAYS)
+
+        if interval_days is not None:
+            attrs[BATTERY_REPLACEMENT_INTERVAL_DAYS] = round(float(interval_days), 2)
+        if average_days is not None:
+            attrs[BATTERY_REPLACEMENT_AVERAGE_DAYS] = round(float(average_days), 2)
+
+        return attrs
+
+    @property
+    def native_value(self) -> int:
+        """Return the replacement count."""
+        return self.coordinator.replacement_count
 
 
 class BatteryNotesBatteryPlusBaseSensor(BatteryNotesEntity, RestoreSensor):
@@ -516,7 +596,6 @@ class BatteryNotesBatteryPlusSensor(BatteryNotesBatteryPlusBaseSensor):
             round_battery=round_battery,
         )
 
-    @callback
     async def async_state_changed_listener(
         self,
         event: Event[EventStateChangedData] | None = None,  # noqa: ARG002
@@ -571,7 +650,6 @@ class BatteryNotesBatteryPlusSensor(BatteryNotesBatteryPlusBaseSensor):
 
         self._write_tracked_ha_state()
 
-    @callback
     async def async_state_reported_listener(
         self,
         event: Event[EventStateReportedData] | None = None,  # noqa: ARG002
@@ -636,7 +714,6 @@ class BatteryNotesBatteryPlusSensor(BatteryNotesBatteryPlusBaseSensor):
     ) -> None:
         """Listen for battery entity_id changes and update battery_plus."""
 
-        @callback
         async def _entity_rename_listener(
             event: Event[er.EventEntityRegistryUpdatedData],
         ) -> None:
@@ -689,23 +766,25 @@ class BatteryNotesBatteryPlusSensor(BatteryNotesBatteryPlusBaseSensor):
                 and event_data["old_entity_id"] == source_entity_id
             )
 
-        self.hass.bus.async_listen(
-            EVENT_ENTITY_REGISTRY_UPDATED,
-            _entity_rename_listener,
-            event_filter=_filter_entity_id,
+        self.async_on_remove(
+            self.hass.bus.async_listen(
+                EVENT_ENTITY_REGISTRY_UPDATED,
+                _entity_rename_listener,
+                event_filter=_filter_entity_id,
+            )
         )
 
     async def async_added_to_hass(self) -> None:
         """Handle added to Hass."""
 
-        @callback
+        await super().async_added_to_hass()
+
         async def _async_state_changed_listener(
             event: Event[EventStateChangedData] | None = None,
         ) -> None:
             """Handle child updates."""
             await self.async_state_changed_listener(event)
 
-        @callback
         async def _async_state_reported_listener(
             event: Event[EventStateReportedData] | None = None,
         ) -> None:
@@ -771,10 +850,6 @@ class BatteryNotesBatteryPlusSensor(BatteryNotesBatteryPlusBaseSensor):
             registry.async_update_entity(
                 self.coordinator.wrapped_battery.entity_id, hidden_by=None
             )
-
-        self.async_on_remove(
-            self.coordinator.async_add_listener(self._handle_coordinator_update)
-        )
 
         await self.coordinator.async_refresh()
 
@@ -850,7 +925,7 @@ class BatteryNotesBatteryPlusTemplateSensor(BatteryNotesBatteryPlusBaseSensor):
 
         self._async_setup_templates()
 
-        async_at_start(self.hass, self._async_template_startup)
+        self.async_on_remove(async_at_start(self.hass, self._async_template_startup))
 
     def add_template_attribute(
         self,
@@ -985,7 +1060,7 @@ class BatteryNotesBatteryPlusTemplateSensor(BatteryNotesBatteryPlusBaseSensor):
         self._state = clamped_state
         self.coordinator.current_battery_level = clamped_state
 
-        self._attr_available = True
+        self._attr_available = clamped_state is not None
         self._attr_native_value = self.coordinator.rounded_battery_level
 
         _LOGGER.debug(
