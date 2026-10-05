@@ -172,9 +172,7 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa
         if not battery_notes_config_entry.runtime_data.subentry_coordinators:
             continue
 
-        for (
-            coordinator
-        ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
+        for coordinator in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
             if not coordinator.is_orphaned and coordinator.device_id == device_id:
                 coordinator.record_battery_replacement(datetime_replaced)
                 await coordinator.async_request_refresh()
@@ -300,7 +298,9 @@ async def _async_battery_last_reported(call: ServiceCall) -> ServiceResponse:
             ):
                 time_since_last_reported = None
                 if coordinator.last_reported:
-                    time_since_last_reported = dt_util.utcnow() - coordinator.last_reported
+                    time_since_last_reported = (
+                        dt_util.utcnow() - coordinator.last_reported
+                    )
                 last_reported_days = (
                     time_since_last_reported.days
                     if time_since_last_reported is not None
