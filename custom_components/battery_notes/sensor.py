@@ -146,13 +146,15 @@ async def async_setup_entry(
             entity_type="sensor",
         )
 
-        replacement_count_sensor_entity_description = BatteryNotesSensorEntityDescription(
-            unique_id_suffix="_battery_replacement_count",
-            key="battery_replacement_count",
-            translation_key="battery_replacement_count",
-            entity_category=EntityCategory.DIAGNOSTIC,
-            state_class=SensorStateClass.TOTAL_INCREASING,
-            entity_type="sensor",
+        replacement_count_sensor_entity_description = (
+            BatteryNotesSensorEntityDescription(
+                unique_id_suffix="_battery_replacement_count",
+                key="battery_replacement_count",
+                translation_key="battery_replacement_count",
+                entity_category=EntityCategory.DIAGNOSTIC,
+                state_class=SensorStateClass.TOTAL_INCREASING,
+                entity_type="sensor",
+            )
         )
 
         last_replaced_sensor_entity_description = BatteryNotesSensorEntityDescription(
