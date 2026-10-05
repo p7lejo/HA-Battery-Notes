@@ -64,14 +64,14 @@ from .const import (
     ATTR_BATTERY_LOW,
     ATTR_BATTERY_LOW_THRESHOLD,
     ATTR_BATTERY_QUANTITY,
-    BATTERY_REPLACEMENT_INTERVAL_DAYS,
-    BATTERY_REPLACEMENT_AVERAGE_DAYS,
     ATTR_BATTERY_TYPE,
     ATTR_BATTERY_TYPE_AND_QUANTITY,
     ATTR_DEVICE_ID,
     ATTR_DEVICE_NAME,
     ATTR_NOTE,
     ATTR_SOURCE_ENTITY_ID,
+    BATTERY_REPLACEMENT_AVERAGE_DAYS,
+    BATTERY_REPLACEMENT_INTERVAL_DAYS,
     CONF_ADVANCED_SETTINGS,
     CONF_BATTERY_QUANTITY,
     CONF_BATTERY_TYPE,
@@ -146,13 +146,15 @@ async def async_setup_entry(
             entity_type="sensor",
         )
 
-        replacement_count_sensor_entity_description = BatteryNotesSensorEntityDescription(
-            unique_id_suffix="_battery_replacement_count",
-            key="battery_replacement_count",
-            translation_key="battery_replacement_count",
-            entity_category=EntityCategory.DIAGNOSTIC,
-            state_class=SensorStateClass.TOTAL_INCREASING,
-            entity_type="sensor",
+        replacement_count_sensor_entity_description = (
+            BatteryNotesSensorEntityDescription(
+                unique_id_suffix="_battery_replacement_count",
+                key="battery_replacement_count",
+                translation_key="battery_replacement_count",
+                entity_category=EntityCategory.DIAGNOSTIC,
+                state_class=SensorStateClass.TOTAL_INCREASING,
+                entity_type="sensor",
+            )
         )
 
         last_replaced_sensor_entity_description = BatteryNotesSensorEntityDescription(
@@ -199,8 +201,6 @@ async def async_setup_entry(
             ),
             BatteryNotesReplacementCountSensor(
                 hass,
-                config_entry,
-                subentry,
                 replacement_count_sensor_entity_description,
                 coordinator,
                 f"{subentry.unique_id}{replacement_count_sensor_entity_description.unique_id_suffix}",
@@ -382,8 +382,6 @@ class BatteryNotesReplacementCountSensor(BatteryNotesEntity, SensorEntity):
     def __init__(
         self,
         hass: HomeAssistant,
-        config_entry: BatteryNotesConfigEntry,
-        subentry: ConfigSubentry,
         entity_description: BatteryNotesSensorEntityDescription,
         coordinator: BatteryNotesSubentryCoordinator,
         unique_id: str,

@@ -341,13 +341,25 @@ async def test_setup_subentry(
         assert entry.device_id == expected_device_id
         assert hass.states.get(entry.entity_id) is not None
 
-    assert {
+    replacement_count_entity_id = entity_registry.async_get_entity_id(
+        "sensor",
+        DOMAIN,
+        f"{mock_subentry.unique_id}_battery_replacement_count",
+    )
+    assert replacement_count_entity_id is not None
+    replacement_count_state = hass.states.get(replacement_count_entity_id)
+    assert replacement_count_state is not None
+    assert replacement_count_state.state == "0"
+
+    snapshot_entries = {
         entry.entity_id: {
             "registry_entry": entry,
             "state": hass.states.get(entry.entity_id),
         }
         for entry in entries
-    } == snapshot(exclude=props("device_id"))
+        if entry.entity_id != replacement_count_entity_id
+    }
+    assert snapshot_entries == snapshot(exclude=props("device_id"))
 
 
 async def test_subentry_follows_source(
