@@ -261,8 +261,8 @@ async def _async_battery_last_replaced(call: ServiceCall) -> ServiceResponse:
                                 ATTR_AREA_NAME: coordinator.area_name,
                                 ATTR_DEVICE_NAME: coordinator.device_name,
                                 ATTR_BATTERY_TYPE_AND_QUANTITY: (
-                                coordinator.battery_type_and_quantity
-                            ),
+                                    coordinator.battery_type_and_quantity
+                                ),
                                 ATTR_BATTERY_TYPE: coordinator.battery_type,
                                 ATTR_BATTERY_QUANTITY: coordinator.battery_quantity,
                                 ATTR_BATTERY_LAST_REPORTED: coordinator.last_reported,
@@ -289,8 +289,8 @@ async def _async_battery_last_replaced(call: ServiceCall) -> ServiceResponse:
                             if coordinator.last_reported
                             else None,
                             ATTR_BATTERY_LAST_REPORTED_LEVEL: (
-                                    coordinator.last_reported_level
-                                ),
+                                coordinator.last_reported_level
+                            ),
                             ATTR_BATTERY_LAST_REPLACED: coordinator.last_replaced.isoformat(),
                             ATTR_BATTERY_LAST_REPLACED_DAYS: time_since_last_replaced.days,
                         }
@@ -322,9 +322,7 @@ async def _async_battery_last_reported(call: ServiceCall) -> ServiceResponse:
             ):
                 time_since_last_reported = None
                 if coordinator.last_reported:
-                    time_since_last_reported = (
-                        dt_util.utcnow() - coordinator.last_reported
-                    )
+                    time_since_last_reported = dt_util.utcnow() - coordinator.last_reported
                 last_reported_days = (
                     time_since_last_reported.days
                     if time_since_last_reported is not None
@@ -348,8 +346,8 @@ async def _async_battery_last_reported(call: ServiceCall) -> ServiceResponse:
                                 ATTR_AREA_NAME: coordinator.area_name,
                                 ATTR_DEVICE_NAME: coordinator.device_name,
                                 ATTR_BATTERY_TYPE_AND_QUANTITY: (
-                                coordinator.battery_type_and_quantity
-                            ),
+                                    coordinator.battery_type_and_quantity
+                                ),
                                 ATTR_BATTERY_TYPE: coordinator.battery_type,
                                 ATTR_BATTERY_QUANTITY: coordinator.battery_quantity,
                                 ATTR_BATTERY_LAST_REPORTED: coordinator.last_reported,
@@ -375,8 +373,8 @@ async def _async_battery_last_reported(call: ServiceCall) -> ServiceResponse:
                             ATTR_BATTERY_LAST_REPORTED: last_reported_iso,
                             ATTR_BATTERY_LAST_REPORTED_DAYS: last_reported_days,
                             ATTR_BATTERY_LAST_REPORTED_LEVEL: (
-                                    coordinator.last_reported_level
-                                ),
+                                coordinator.last_reported_level
+                            ),
                             ATTR_BATTERY_LAST_REPLACED: coordinator.last_replaced.isoformat()
                             if coordinator.last_replaced
                             else None,
@@ -421,8 +419,8 @@ async def _async_battery_low(call: ServiceCall) -> ServiceResponse:
                             ATTR_BATTERY_QUANTITY: coordinator.battery_quantity,
                             ATTR_BATTERY_LEVEL: coordinator.rounded_battery_level,
                             ATTR_PREVIOUS_BATTERY_LEVEL: (
-                            coordinator.rounded_previous_battery_level
-                        ),
+                                coordinator.rounded_previous_battery_level
+                            ),
                             ATTR_BATTERY_LAST_REPLACED: coordinator.last_replaced,
                             ATTR_BATTERY_THRESHOLD_REMINDER: True,
                         },
