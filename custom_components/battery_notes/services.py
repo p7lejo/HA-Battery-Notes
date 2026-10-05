@@ -143,7 +143,8 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa
                         EVENT_BATTERY_REPLACED,
                         {
                             ATTR_DEVICE_ID: coordinator.device_id or "",
-                            ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
+                            ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id
+                            or "",
                             ATTR_AREA_NAME: coordinator.area_name,
                             ATTR_DEVICE_NAME: coordinator.device_name,
                             ATTR_BATTERY_TYPE_AND_QUANTITY: (
@@ -254,7 +255,8 @@ async def _async_battery_last_replaced(call: ServiceCall) -> ServiceResponse:
                             EVENT_BATTERY_NOT_REPLACED,
                             {
                                 ATTR_DEVICE_ID: coordinator.device_id or "",
-                                ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
+                                ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id
+                                or "",
                                 ATTR_AREA_NAME: coordinator.area_name,
                                 ATTR_DEVICE_NAME: coordinator.device_name,
                                 ATTR_BATTERY_TYPE_AND_QUANTITY: (
