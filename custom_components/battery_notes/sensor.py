@@ -64,8 +64,8 @@ from .const import (
     ATTR_BATTERY_LOW,
     ATTR_BATTERY_LOW_THRESHOLD,
     ATTR_BATTERY_QUANTITY,
-    BATTERY_REPLACEMENT_INTERVAL_DAYS,
     BATTERY_REPLACEMENT_AVERAGE_DAYS,
+    BATTERY_REPLACEMENT_INTERVAL_DAYS,
     ATTR_BATTERY_TYPE,
     ATTR_BATTERY_TYPE_AND_QUANTITY,
     ATTR_DEVICE_ID,
@@ -199,8 +199,6 @@ async def async_setup_entry(
             ),
             BatteryNotesReplacementCountSensor(
                 hass,
-                config_entry,
-                subentry,
                 replacement_count_sensor_entity_description,
                 coordinator,
                 f"{subentry.unique_id}{replacement_count_sensor_entity_description.unique_id_suffix}",
@@ -382,8 +380,6 @@ class BatteryNotesReplacementCountSensor(BatteryNotesEntity, SensorEntity):
     def __init__(
         self,
         hass: HomeAssistant,
-        config_entry: BatteryNotesConfigEntry,
-        subentry: ConfigSubentry,
         entity_description: BatteryNotesSensorEntityDescription,
         coordinator: BatteryNotesSubentryCoordinator,
         unique_id: str,
