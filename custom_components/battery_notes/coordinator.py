@@ -760,7 +760,9 @@ class BatteryNotesSubentryCoordinator(DataUpdateCoordinator[None]):
                 self.source_entity_id
             )
         else:
-            entry = self.config_entry.runtime_data.store.async_get_device(self.device_id)
+            entry = self.config_entry.runtime_data.store.async_get_device(
+                self.device_id
+            )
 
         if entry:
             return int(entry.get(BATTERY_REPLACEMENT_COUNT, 0))
@@ -813,9 +815,7 @@ class BatteryNotesSubentryCoordinator(DataUpdateCoordinator[None]):
         data[LAST_REPLACED] = _ensure_utc(replaced_at)
 
         if self.source_entity_id:
-            self.async_update_entity_config(
-                entity_id=self.source_entity_id, data=data
-            )
+            self.async_update_entity_config(entity_id=self.source_entity_id, data=data)
         elif self.device_id:
             self.async_update_device_config(device_id=self.device_id, data=data)
 
