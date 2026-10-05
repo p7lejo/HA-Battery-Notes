@@ -124,7 +124,7 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa
 
             for (
                 coordinator
-                ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
+            ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
                 if (
                     not coordinator.is_orphaned
                     and coordinator.source_entity_id
@@ -143,8 +143,7 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa
                         EVENT_BATTERY_REPLACED,
                         {
                             ATTR_DEVICE_ID: coordinator.device_id or "",
-                            ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id
-                                or "",
+                            ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
                             ATTR_AREA_NAME: coordinator.area_name,
                             ATTR_DEVICE_NAME: coordinator.device_name,
                             ATTR_BATTERY_TYPE_AND_QUANTITY: (
@@ -179,7 +178,7 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa
 
         for (
             coordinator
-            ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
+        ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
             if not coordinator.is_orphaned and coordinator.device_id == device_id:
                 coordinator.record_battery_replacement(datetime_replaced)
                 await coordinator.async_request_refresh()
@@ -194,8 +193,7 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa
                     EVENT_BATTERY_REPLACED,
                     {
                         ATTR_DEVICE_ID: coordinator.device_id or "",
-                        ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id
-                                or "",
+                        ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
                         ATTR_AREA_NAME: coordinator.area_name,
                         ATTR_DEVICE_NAME: coordinator.device_name,
                         ATTR_BATTERY_TYPE_AND_QUANTITY: (
@@ -230,7 +228,7 @@ async def _async_battery_last_replaced(call: ServiceCall) -> ServiceResponse:
 
         for (
             coordinator
-            ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
+        ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
             if not coordinator.is_orphaned and coordinator.last_replaced:
                 last_replaced_entity_id = entity_registry.async_get_entity_id(
                     "sensor",
@@ -256,8 +254,7 @@ async def _async_battery_last_replaced(call: ServiceCall) -> ServiceResponse:
                             EVENT_BATTERY_NOT_REPLACED,
                             {
                                 ATTR_DEVICE_ID: coordinator.device_id or "",
-                                ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id
-                                or "",
+                                ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
                                 ATTR_AREA_NAME: coordinator.area_name,
                                 ATTR_DEVICE_NAME: coordinator.device_name,
                                 ATTR_BATTERY_TYPE_AND_QUANTITY: (
@@ -277,8 +274,7 @@ async def _async_battery_last_replaced(call: ServiceCall) -> ServiceResponse:
                     return_items.append(
                         {
                             ATTR_DEVICE_ID: coordinator.device_id or "",
-                            ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id
-                                or "",
+                            ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
                             ATTR_DEVICE_NAME: coordinator.device_name,
                             ATTR_AREA_NAME: coordinator.area_name,
                             ATTR_BATTERY_TYPE_AND_QUANTITY: (
@@ -316,7 +312,7 @@ async def _async_battery_last_reported(call: ServiceCall) -> ServiceResponse:
 
         for (
             coordinator
-            ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
+        ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
             if not coordinator.is_orphaned and (
                 coordinator.wrapped_battery or coordinator.wrapped_battery_low
             ):
@@ -344,8 +340,7 @@ async def _async_battery_last_reported(call: ServiceCall) -> ServiceResponse:
                             EVENT_BATTERY_NOT_REPORTED,
                             {
                                 ATTR_DEVICE_ID: coordinator.device_id or "",
-                                ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id
-                                or "",
+                                ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
                                 ATTR_AREA_NAME: coordinator.area_name,
                                 ATTR_DEVICE_NAME: coordinator.device_name,
                                 ATTR_BATTERY_TYPE_AND_QUANTITY: (
@@ -365,8 +360,7 @@ async def _async_battery_last_reported(call: ServiceCall) -> ServiceResponse:
                     return_items.append(
                         {
                             ATTR_DEVICE_ID: coordinator.device_id or "",
-                            ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id
-                                or "",
+                            ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
                             ATTR_DEVICE_NAME: coordinator.device_name,
                             ATTR_AREA_NAME: coordinator.area_name,
                             ATTR_BATTERY_TYPE_AND_QUANTITY: (
@@ -403,7 +397,7 @@ async def _async_battery_low(call: ServiceCall) -> ServiceResponse:
 
         for (
             coordinator
-            ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
+        ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
             if not coordinator.is_orphaned and coordinator.battery_low is True:
                 if raise_events:
                     call.hass.bus.async_fire(
@@ -411,8 +405,7 @@ async def _async_battery_low(call: ServiceCall) -> ServiceResponse:
                         {
                             ATTR_DEVICE_ID: coordinator.device_id or "",
                             ATTR_DEVICE_NAME: coordinator.device_name,
-                            ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id
-                                or "",
+                            ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
                             ATTR_AREA_NAME: coordinator.area_name,
                             ATTR_BATTERY_LOW: coordinator.battery_low,
                             ATTR_BATTERY_LOW_THRESHOLD: coordinator.battery_low_threshold,
@@ -434,8 +427,7 @@ async def _async_battery_low(call: ServiceCall) -> ServiceResponse:
                     {
                         ATTR_DEVICE_ID: coordinator.device_id or "",
                         ATTR_DEVICE_NAME: coordinator.device_name,
-                        ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id
-                                or "",
+                        ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
                         ATTR_AREA_NAME: coordinator.area_name,
                         ATTR_BATTERY_LOW: coordinator.battery_low,
                         ATTR_BATTERY_LOW_THRESHOLD: coordinator.battery_low_threshold,
