@@ -176,7 +176,7 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa
             coordinator
         ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
             if not coordinator.is_orphaned and coordinator.device_id == device_id:
-                coordinator.last_replaced = datetime_replaced
+                coordinator.record_battery_replacement(datetime_replaced)
                 await coordinator.async_request_refresh()
 
                 _LOGGER.debug(
