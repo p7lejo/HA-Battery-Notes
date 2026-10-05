@@ -827,9 +827,7 @@ class BatteryNotesSubentryCoordinator(DataUpdateCoordinator[None]):
         data = {LAST_REPLACED: _ensure_utc(value)}
 
         if self.source_entity_id:
-            self.async_update_entity_config(
-                entity_id=self.source_entity_id, data=data
-            )
+            self.async_update_entity_config(entity_id=self.source_entity_id, data=data)
         elif self.device_id:
             self.async_update_device_config(device_id=self.device_id, data=data)
 
