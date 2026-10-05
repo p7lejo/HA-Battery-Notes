@@ -122,9 +122,8 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa
             if not battery_notes_config_entry.runtime_data.subentry_coordinators:
                 continue
 
-            for (
-                coordinator
-                in battery_notes_config_entry.runtime_data.subentry_coordinators.values()
+            for coordinator in (
+                battery_notes_config_entry.runtime_data.subentry_coordinators.values()
             ):
                 if (
                     not coordinator.is_orphaned
@@ -177,9 +176,8 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa
         if not battery_notes_config_entry.runtime_data.subentry_coordinators:
             continue
 
-        for (
-            coordinator
-            in battery_notes_config_entry.runtime_data.subentry_coordinators.values()
+        for coordinator in (
+            battery_notes_config_entry.runtime_data.subentry_coordinators.values()
         ):
             if not coordinator.is_orphaned and coordinator.device_id == device_id:
                 coordinator.record_battery_replacement(datetime_replaced)
@@ -228,9 +226,8 @@ async def _async_battery_last_replaced(call: ServiceCall) -> ServiceResponse:
         if not battery_notes_config_entry.runtime_data.subentry_coordinators:
             continue
 
-        for (
-            coordinator
-            in battery_notes_config_entry.runtime_data.subentry_coordinators.values()
+        for coordinator in (
+            battery_notes_config_entry.runtime_data.subentry_coordinators.values()
         ):
             if not coordinator.is_orphaned and coordinator.last_replaced:
                 last_replaced_entity_id = entity_registry.async_get_entity_id(
@@ -313,9 +310,8 @@ async def _async_battery_last_reported(call: ServiceCall) -> ServiceResponse:
         if not battery_notes_config_entry.runtime_data.subentry_coordinators:
             continue
 
-        for (
-            coordinator
-            in battery_notes_config_entry.runtime_data.subentry_coordinators.values()
+        for coordinator in (
+            battery_notes_config_entry.runtime_data.subentry_coordinators.values()
         ):
             if not coordinator.is_orphaned and (
                 coordinator.wrapped_battery or coordinator.wrapped_battery_low
@@ -397,9 +393,8 @@ async def _async_battery_low(call: ServiceCall) -> ServiceResponse:
         if not battery_notes_config_entry.runtime_data.subentry_coordinators:
             continue
 
-        for (
-            coordinator
-            in battery_notes_config_entry.runtime_data.subentry_coordinators.values()
+        for coordinator in (
+            battery_notes_config_entry.runtime_data.subentry_coordinators.values()
         ):
             if not coordinator.is_orphaned and coordinator.battery_low is True:
                 if raise_events:
