@@ -198,12 +198,6 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa
                     },
                 )
 
-                _LOGGER.debug(
-                    "Raised event battery replaced %s",
-                    coordinator.device_id,
-                )
-
-                # Found and dealt with, exit
         for coordinator in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
             if not coordinator.is_orphaned and coordinator.device_id == device_id:
                 coordinator.record_battery_replacement(datetime_replaced)
