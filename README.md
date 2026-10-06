@@ -21,12 +21,21 @@ A battery+ sensor provides useful attributes for easy use in dashboards, the sta
 
 Battery low, replaced and not reported are all exposed via events and actions, using these you can create your own automations to generate notifications or other actions, there are some predefined ones in [community](https://andrew-codechimp.github.io/HA-Battery-Notes/community).
 
-_Please :star: this repo if you find it useful_  
-_If you want to show your support please_
+## Fork
+    Add a persistent battery replacement count for each tracked device/entity.
+    Record the time between consecutive battery replacements as the replacement interval.
+    Calculate the average battery lifetime from all recorded replacement intervals.
+    Persist replacement statistics in the existing storage data, including:
+        replacement count
+        latest replacement interval
+        average lifetime
+        accumulated lifetime data
+    Add a new battery_replacement_count sensor with appropriate long-term statistics support.
+    Expose the replacement interval and average lifetime as sensor attributes.
+    Update the replacement button/service to record a replacement event instead of only updating last_replaced.
+    Preserve existing last_replaced behavior and avoid counting replacements when historical data is loaded.
 
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/yellow_img.png)](https://www.buymeacoffee.com/codechimp)
-
-![Battery Notes](https://raw.githubusercontent.com/andrew-codechimp/ha-battery-notes/main/docs/assets/screenshot-device.png "Battery Notes")
+<img width="402" height="367" alt="grafik" src="https://github.com/user-attachments/assets/0d56422b-f988-41d6-9807-ed516b1a6e8c" />
 
 ![Discovery](https://raw.githubusercontent.com/andrew-codechimp/ha-battery-notes/main/docs/assets/screenshot-discovery.png "Device Discovery")
 
