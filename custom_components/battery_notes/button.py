@@ -16,13 +16,6 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    ATTR_AREA_NAME,
-    ATTR_BATTERY_QUANTITY,
-    ATTR_BATTERY_TYPE,
-    ATTR_BATTERY_TYPE_AND_QUANTITY,
-    ATTR_DEVICE_ID,
-    ATTR_DEVICE_NAME,
-    ATTR_SOURCE_ENTITY_ID,
     DOMAIN,
     EVENT_BATTERY_REPLACED,
     SUBENTRY_BATTERY_NOTE,
@@ -50,10 +43,7 @@ async def async_setup_entry(
 ) -> None:
     """Initialize Battery Type config entry."""
 
-    for subentry in config_entry.subentries.values():
-        if subentry.subentry_type != SUBENTRY_BATTERY_NOTE:
-            continue
-
+    for subentry in config_entry.get_subentries_of_type(SUBENTRY_BATTERY_NOTE):
         assert config_entry.runtime_data.subentry_coordinators
         coordinator = config_entry.runtime_data.subentry_coordinators.get(
             subentry.subentry_id
@@ -127,18 +117,7 @@ class BatteryNotesButton(BatteryNotesEntity, ButtonEntity):
         """Press the button."""
         self.coordinator.record_battery_replacement(dt_util.utcnow())
 
-        self.hass.bus.async_fire(
-            EVENT_BATTERY_REPLACED,
-            {
-                ATTR_DEVICE_ID: self.coordinator.device_id or "",
-                ATTR_SOURCE_ENTITY_ID: self.coordinator.source_entity_id or "",
-                ATTR_AREA_NAME: self.coordinator.area_name,
-                ATTR_DEVICE_NAME: self.coordinator.device_name,
-                ATTR_BATTERY_TYPE_AND_QUANTITY: self.coordinator.battery_type_and_quantity,
-                ATTR_BATTERY_TYPE: self.coordinator.battery_type,
-                ATTR_BATTERY_QUANTITY: self.coordinator.battery_quantity,
-            },
-        )
+        self.hass.bus.async_fire(EVENT_BATTERY_REPLACED, self.coordinator.event_data())
 
         _LOGGER.debug(
             "Raised event battery replaced %s",

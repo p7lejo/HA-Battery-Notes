@@ -1,23 +1,45 @@
 """Tests for Battery Notes services."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
+from types import MappingProxyType
 
 import pytest
 from custom_components.battery_notes.const import (
     ATTR_AREA_NAME,
     ATTR_BATTERY_LAST_REPLACED,
+    ATTR_BATTERY_LAST_REPLACED_DAYS,
+    ATTR_BATTERY_LAST_REPORTED,
+    ATTR_BATTERY_LAST_REPORTED_DAYS,
+    ATTR_BATTERY_LAST_REPORTED_LEVEL,
+    ATTR_BATTERY_LEVEL,
+    ATTR_BATTERY_LOW,
     ATTR_BATTERY_QUANTITY,
+    ATTR_BATTERY_THRESHOLD_REMINDER,
     ATTR_BATTERY_TYPE,
     ATTR_BATTERY_TYPE_AND_QUANTITY,
     ATTR_DEVICE_ID,
     ATTR_DEVICE_NAME,
+    ATTR_NOTE,
     ATTR_SOURCE_ENTITY_ID,
+    CONF_ADVANCED_SETTINGS,
+    CONF_BATTERY_QUANTITY,
+    CONF_BATTERY_TYPE,
     CONF_SOURCE_ENTITY_ID,
     DOMAIN,
+    EVENT_BATTERY_NOT_REPLACED,
+    EVENT_BATTERY_NOT_REPORTED,
     EVENT_BATTERY_REPLACED,
+    EVENT_BATTERY_THRESHOLD,
     LAST_REPLACED,
     SERVICE_BATTERY_REPLACED,
+    SERVICE_CHECK_BATTERY_LAST_REPLACED,
+    SERVICE_CHECK_BATTERY_LAST_REPORTED,
+    SERVICE_CHECK_BATTERY_LOW,
     SERVICE_DATA_DATE_TIME_REPLACED,
+    SERVICE_DATA_DAYS_LAST_REPLACED,
+    SERVICE_DATA_DAYS_LAST_REPORTED,
+    SERVICE_DATA_RAISE_EVENTS,
+    SUBENTRY_BATTERY_NOTE,
 )
 from freezegun.api import FrozenDateTimeFactory
 from pytest_homeassistant_custom_component.common import (
@@ -25,10 +47,21 @@ from pytest_homeassistant_custom_component.common import (
     async_capture_events,
 )
 
-from homeassistant.const import CONF_DEVICE_ID
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.config_entries import ConfigSubentry
+from homeassistant.const import (
+    ATTR_DEVICE_CLASS,
+    ATTR_UNIT_OF_MEASUREMENT,
+    CONF_DEVICE_ID,
+    PERCENTAGE,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import (
+    area_registry as ar,
+    device_registry as dr,
+    entity_registry as er,
+)
 
 from . import setup_integration
 
@@ -125,6 +158,7 @@ async def test_set_battery_replaced(
         ATTR_BATTERY_TYPE_AND_QUANTITY: "2× AA",
         ATTR_BATTERY_TYPE: "AA",
         ATTR_BATTERY_QUANTITY: 2,
+        ATTR_NOTE: "",
     }
 
 
@@ -174,3 +208,242 @@ async def test_set_battery_replaced_unconfigured_source(
     assert not events
     assert mock_config_entry.runtime_data.store.async_get_devices() == {}
     assert mock_config_entry.runtime_data.store.async_get_entities() == {}
+
+
+@pytest.mark.parametrize("battery_note_source", ["entity"])
+async def test_set_battery_replaced_prefers_device_note(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    battery_note_device: dr.DeviceEntry,
+    battery_note_sensor: er.RegistryEntry,
+) -> None:
+    """Test replacing by device updates the device note, not an entity note on it."""
+    note_data = {
+        CONF_BATTERY_TYPE: "AA",
+        CONF_BATTERY_QUANTITY: 2,
+        CONF_ADVANCED_SETTINGS: {},
+    }
+    entity_note = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                **note_data,
+                CONF_DEVICE_ID: battery_note_device.id,
+                CONF_SOURCE_ENTITY_ID: battery_note_sensor.entity_id,
+            }
+        ),
+        subentry_id="entity-note",
+        subentry_type=SUBENTRY_BATTERY_NOTE,
+        title="Door entity note",
+        unique_id="bn_door_entity",
+    )
+    device_note = ConfigSubentry(
+        data=MappingProxyType({**note_data, CONF_DEVICE_ID: battery_note_device.id}),
+        subentry_id="device-note",
+        subentry_type=SUBENTRY_BATTERY_NOTE,
+        title="Door device note",
+        unique_id="bn_door_device",
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=mock_config_entry.version,
+        title=mock_config_entry.title,
+        data=mock_config_entry.data,
+        options=mock_config_entry.options,
+        subentries_data=[entity_note.as_dict(), device_note.as_dict()],
+    )
+    await setup_integration(hass, entry)
+    events = async_capture_events(hass, EVENT_BATTERY_REPLACED)
+
+    await hass.services.async_call(
+        DOMAIN,
+        SERVICE_BATTERY_REPLACED,
+        {
+            ATTR_DEVICE_ID: battery_note_device.id,
+            SERVICE_DATA_DATE_TIME_REPLACED: "2025-12-20T14:30:00+00:00",
+        },
+        blocking=True,
+    )
+
+    replaced_at = datetime.fromisoformat("2025-12-20T14:30:00.000001+00:00")
+    coordinators = entry.runtime_data.subentry_coordinators
+    assert coordinators["device-note"].last_replaced == replaced_at
+    assert coordinators["entity-note"].last_replaced != replaced_at
+    assert len(events) == 1
+    assert events[0].data[ATTR_DEVICE_NAME] == "Door device note"
+    assert events[0].data[ATTR_SOURCE_ENTITY_ID] == ""
+
+
+@pytest.mark.parametrize(
+    ("level", "raise_events"),
+    [
+        pytest.param("5", True, id="low"),
+        pytest.param("5", False, id="low-without-events"),
+        pytest.param("55", True, id="not-low"),
+    ],
+)
+async def test_check_battery_low(
+    hass: HomeAssistant,
+    battery_note_config_entry: MockConfigEntry,
+    battery_note_sensor: er.RegistryEntry,
+    level: str,
+    raise_events: bool,
+) -> None:
+    """Test checking for low batteries raises reminder events and returns them."""
+    await setup_integration(hass, battery_note_config_entry)
+    hass.states.async_set(
+        battery_note_sensor.entity_id,
+        level,
+        {
+            ATTR_DEVICE_CLASS: SensorDeviceClass.BATTERY,
+            ATTR_UNIT_OF_MEASUREMENT: PERCENTAGE,
+        },
+    )
+    await hass.async_block_till_done()
+    events = async_capture_events(hass, EVENT_BATTERY_THRESHOLD)
+
+    response = await hass.services.async_call(
+        DOMAIN,
+        SERVICE_CHECK_BATTERY_LOW,
+        {SERVICE_DATA_RAISE_EVENTS: raise_events},
+        blocking=True,
+        return_response=True,
+    )
+
+    assert response is not None
+    items = response["check_battery_battery_low"]
+    is_low = level == "5"
+    assert len(items) == (1 if is_low else 0)
+    for item in items:
+        assert item[ATTR_DEVICE_NAME] == "Door battery note"
+        assert item[ATTR_BATTERY_LOW] is True
+        assert item[ATTR_BATTERY_LEVEL] == 5
+        assert item[ATTR_BATTERY_THRESHOLD_REMINDER] is True
+    assert len(events) == (1 if is_low and raise_events else 0)
+    for event in events:
+        assert event.data[ATTR_BATTERY_LOW] is True
+        assert event.data[ATTR_BATTERY_THRESHOLD_REMINDER] is True
+
+
+@pytest.mark.parametrize(
+    ("days_last_replaced", "expected_items"),
+    [
+        pytest.param(30, 1, id="overdue"),
+        pytest.param(60, 0, id="recent"),
+    ],
+)
+async def test_check_battery_last_replaced(
+    hass: HomeAssistant,
+    battery_note_config_entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+    days_last_replaced: int,
+    expected_items: int,
+) -> None:
+    """Test batteries replaced longer ago than the given days are reported."""
+    await setup_integration(hass, battery_note_config_entry)
+    freezer.tick(timedelta(days=40))
+    events = async_capture_events(hass, EVENT_BATTERY_NOT_REPLACED)
+
+    response = await hass.services.async_call(
+        DOMAIN,
+        SERVICE_CHECK_BATTERY_LAST_REPLACED,
+        {SERVICE_DATA_DAYS_LAST_REPLACED: days_last_replaced},
+        blocking=True,
+        return_response=True,
+    )
+
+    assert response is not None
+    items = response["check_battery_last_replaced"]
+    assert len(items) == expected_items
+    assert len(events) == expected_items
+    for data in (*items, *(event.data for event in events)):
+        assert data[ATTR_DEVICE_NAME] == "Door battery note"
+        assert data[ATTR_NOTE] == ""
+        assert data[ATTR_BATTERY_LAST_REPLACED_DAYS] == 40
+    for item in items:
+        assert item[ATTR_BATTERY_LAST_REPLACED] == "2026-01-01T12:00:00+00:00"
+
+
+@pytest.mark.parametrize(
+    ("days_last_reported", "expected_items"),
+    [
+        pytest.param(2, 1, id="not-reported"),
+        pytest.param(5, 0, id="recently-reported"),
+    ],
+)
+async def test_check_battery_last_reported(
+    hass: HomeAssistant,
+    battery_note_config_entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+    days_last_reported: int,
+    expected_items: int,
+) -> None:
+    """Test batteries not reported for longer than the given days are reported."""
+    await setup_integration(hass, battery_note_config_entry)
+    freezer.tick(timedelta(days=3))
+    events = async_capture_events(hass, EVENT_BATTERY_NOT_REPORTED)
+
+    response = await hass.services.async_call(
+        DOMAIN,
+        SERVICE_CHECK_BATTERY_LAST_REPORTED,
+        {SERVICE_DATA_DAYS_LAST_REPORTED: days_last_reported},
+        blocking=True,
+        return_response=True,
+    )
+
+    assert response is not None
+    items = response["check_battery_last_reported"]
+    assert len(items) == expected_items
+    assert len(events) == expected_items
+    for data in (*items, *(event.data for event in events)):
+        assert data[ATTR_DEVICE_NAME] == "Door battery note"
+        assert data[ATTR_BATTERY_LAST_REPORTED_DAYS] == 3
+        assert data[ATTR_NOTE] == ""
+        assert data[ATTR_BATTERY_LAST_REPORTED_LEVEL] == 55
+    for item in items:
+        assert item[ATTR_BATTERY_LAST_REPORTED] == "2026-01-01T12:00:00+00:00"
+
+
+@pytest.mark.parametrize(
+    "entity_area",
+    [
+        pytest.param(None, id="inherits-device-area"),
+        pytest.param("Garage", id="entity-area-override"),
+    ],
+)
+@pytest.mark.parametrize("battery_note_source", ["device", "entity"])
+async def test_battery_replaced_area(
+    hass: HomeAssistant,
+    battery_note_config_entry: MockConfigEntry,
+    battery_note_device: dr.DeviceEntry,
+    battery_note_sensor: er.RegistryEntry,
+    entity_area: str | None,
+) -> None:
+    """Test events use the source entity's own area or else its device's area."""
+    area_registry = ar.async_get(hass)
+    dr.async_get(hass).async_update_device(
+        battery_note_device.id, area_id=area_registry.async_create("Hall").id
+    )
+    if entity_area:
+        er.async_get(hass).async_update_entity(
+            battery_note_sensor.entity_id,
+            area_id=area_registry.async_create(entity_area).id,
+        )
+    await setup_integration(hass, battery_note_config_entry)
+    subentry = next(iter(battery_note_config_entry.subentries.values()))
+    events = async_capture_events(hass, EVENT_BATTERY_REPLACED)
+
+    await hass.services.async_call(
+        DOMAIN,
+        SERVICE_BATTERY_REPLACED,
+        {ATTR_DEVICE_ID: subentry.data[CONF_DEVICE_ID]}
+        if CONF_SOURCE_ENTITY_ID not in subentry.data
+        else {ATTR_SOURCE_ENTITY_ID: subentry.data[CONF_SOURCE_ENTITY_ID]},
+        blocking=True,
+    )
+
+    assert len(events) == 1
+    # Entity area overrides only apply to entity notes
+    is_entity_note = CONF_SOURCE_ENTITY_ID in subentry.data
+    assert events[0].data[ATTR_AREA_NAME] == (
+        (entity_area or "Hall") if is_entity_note else "Hall"
+    )

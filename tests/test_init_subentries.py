@@ -16,6 +16,7 @@ from custom_components.battery_notes.const import (
     CONF_BATTERY_PERCENTAGE_TEMPLATE,
     CONF_BATTERY_QUANTITY,
     CONF_BATTERY_TYPE,
+    CONF_HIDE_BATTERY,
     CONF_NOTE,
     CONF_SOURCE_ENTITY_ID,
     DOMAIN,
@@ -362,6 +363,81 @@ async def test_setup_subentry(
     assert snapshot_entries == snapshot(exclude=props("device_id"))
 
 
+@pytest.fixture
+def percentage_source_units(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+    source_sensor: er.RegistryEntry,
+    request: pytest.FixtureRequest,
+) -> None:
+    """Configure registry and live units independently before loading the note."""
+    registry_unit, live_unit, state_present = request.param
+    entity_registry.async_update_entity(
+        source_sensor.entity_id, unit_of_measurement=registry_unit
+    )
+    if state_present:
+        hass.states.async_set(
+            source_sensor.entity_id,
+            "55",
+            {
+                ATTR_DEVICE_CLASS: SensorDeviceClass.BATTERY,
+                ATTR_UNIT_OF_MEASUREMENT: live_unit,
+            },
+        )
+    else:
+        hass.states.async_remove(source_sensor.entity_id)
+
+
+@pytest.mark.parametrize(
+    "source_sensor", [pytest.param("sensor", id="percentage")], indirect=True
+)
+@pytest.mark.parametrize(
+    ("percentage_source_units", "expected_match"),
+    [
+        pytest.param((None, PERCENTAGE, True), True, id="live-unit-fallback"),
+        pytest.param((PERCENTAGE, None, False), True, id="registry-unit-without-state"),
+        pytest.param(
+            (PERCENTAGE, PERCENTAGE, True), True, id="matching-percentage-units"
+        ),
+        pytest.param((None, None, False), False, id="no-unit-or-state"),
+        pytest.param((None, None, True), False, id="state-without-unit"),
+        pytest.param((None, "V", True), False, id="live-voltage-unit"),
+        pytest.param(
+            ("V", PERCENTAGE, True), False, id="registry-voltage-takes-precedence"
+        ),
+    ],
+    indirect=["percentage_source_units"],
+)
+@pytest.mark.usefixtures("percentage_source_units")
+async def test_link_battery_percentage_units(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    source_sensor: er.RegistryEntry,
+    entity_registry: er.EntityRegistry,
+    expected_match: bool,
+) -> None:
+    """Test setup links percentage sources using registry units before live units."""
+    await setup_integration(hass, mock_config_entry)
+
+    assert mock_config_entry.state is ConfigEntryState.LOADED
+    mock_subentry = next(iter(mock_config_entry.subentries.values()))
+    coordinator = mock_config_entry.runtime_data.subentry_coordinators[
+        mock_subentry.subentry_id
+    ]
+    assert not coordinator.is_orphaned
+    assert (
+        coordinator.wrapped_battery
+        == {
+            True: entity_registry.async_get(source_sensor.entity_id),
+            False: None,
+        }[expected_match]
+    )
+    battery_plus_id = entity_registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{mock_subentry.unique_id}_battery_plus"
+    )
+    assert (battery_plus_id is not None) is expected_match
+
+
 async def test_subentry_follows_source(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
@@ -533,6 +609,23 @@ async def test_link_retry_source_still_missing(
         reload_entry.assert_not_awaited()
 
 
+async def test_orphaned_note_configuration(
+    orphaned_config_entry: MockConfigEntry,
+) -> None:
+    """Test an orphaned note still exposes its configuration."""
+    entry = orphaned_config_entry
+    subentry = next(iter(entry.subentries.values()))
+    coordinator = entry.runtime_data.subentry_coordinators[subentry.subentry_id]
+
+    assert coordinator.device_name == "Door battery note"
+    assert coordinator.battery_type_and_quantity == "2× AA"
+    assert coordinator.battery_note == "Under the cover"
+    assert coordinator.battery_low_threshold == 15
+    assert coordinator.battery_increased_threshold == 25
+    assert coordinator.battery_low_template is None
+    assert coordinator.battery_low is False
+
+
 @pytest.mark.parametrize(
     "operation",
     [
@@ -659,25 +752,51 @@ async def test_template_startup_cancelled_on_removal(
     with (
         patch.object(hass, "state", CoreState.not_running),
         patch(
-            "custom_components.battery_notes.sensor.async_track_template_result",
+            "custom_components.battery_notes.template_helpers.async_track_template_result",
             wraps=async_track_template_result,
-        ) as percentage_tracker,
-        patch(
-            "custom_components.battery_notes.binary_sensor.async_track_template_result",
-            wraps=async_track_template_result,
-        ) as low_tracker,
+        ) as template_tracker,
     ):
         await setup_integration(hass, template_config_entry)
-        percentage_tracker.assert_not_called()
-        low_tracker.assert_not_called()
+        template_tracker.assert_not_called()
 
         assert await cleanup_operation(template_config_entry.entry_id)
         await hass.async_block_till_done(wait_background_tasks=True)
-        percentage_tracker.assert_not_called()
-        low_tracker.assert_not_called()
+        template_tracker.assert_not_called()
 
         hass.bus.async_fire(EVENT_HOMEASSISTANT_START)
         await hass.async_block_till_done(wait_background_tasks=True)
 
-        assert percentage_tracker.call_count == expected_startups
-        assert low_tracker.call_count == expected_startups
+        # The percentage and low template entities each track their template
+        assert template_tracker.call_count == 2 * expected_startups
+
+
+async def test_remove_subentry_unhides_source(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    source_sensor: er.RegistryEntry,
+) -> None:
+    """Test removing a note shows the source battery or battery low entity again."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=mock_config_entry.version,
+        title=mock_config_entry.title,
+        data=mock_config_entry.data,
+        options={**mock_config_entry.options, CONF_HIDE_BATTERY: True},
+        subentries_data=[
+            subentry.as_dict() for subentry in mock_config_entry.subentries.values()
+        ],
+    )
+    await setup_integration(hass, entry)
+    entity_registry = er.async_get(hass)
+    source = entity_registry.async_get(source_sensor.entity_id)
+    assert source is not None
+    assert source.hidden_by is er.RegistryEntryHider.INTEGRATION
+
+    assert hass.config_entries.async_remove_subentry(
+        entry, next(iter(entry.subentries))
+    )
+    await hass.async_block_till_done()
+
+    source = entity_registry.async_get(source_sensor.entity_id)
+    assert source is not None
+    assert source.hidden_by is None
