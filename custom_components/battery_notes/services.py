@@ -129,7 +129,6 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:
                     and coordinator.source_entity_id
                     and coordinator.source_entity_id == source_entity_id
                 ):
-                    coordinator.last_replaced = datetime_replaced
                     coordinator.record_battery_replacement(datetime_replaced)
                     await coordinator.async_request_refresh()
 
@@ -180,7 +179,6 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:
         coordinator = next(
             (match for match in matches if not match.source_entity_id), matches[0]
         )
-        coordinator.last_replaced = datetime_replaced
         coordinator.record_battery_replacement(datetime_replaced)
         await coordinator.async_request_refresh()
 
