@@ -121,6 +121,11 @@ async def test_composite_entity_note_uses_current_device(
     assert store.async_get_entity(battery_note_sensor.entity_id) == {
         "entity_id": battery_note_sensor.entity_id,
         **history,
+        "battery_replacement_count": 0,
+        "battery_replacement_interval_days": None,
+        "battery_replacement_average_days": None,
+        "battery_replacement_total_days": 0.0,
+        "battery_replacement_interval_count": 0,
     }
     assert coordinator.last_replaced == history[LAST_REPLACED]
     assert coordinator.last_reported == history[LAST_REPORTED]
