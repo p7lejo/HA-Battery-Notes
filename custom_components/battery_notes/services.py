@@ -1,6 +1,7 @@
 """Define services for the Battery Notes integration."""
 
 import logging
+from datetime import datetime
 from typing import Any, cast
 
 from homeassistant.core import (
@@ -15,22 +16,12 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    ATTR_AREA_NAME,
     ATTR_BATTERY_LAST_REPLACED,
     ATTR_BATTERY_LAST_REPLACED_DAYS,
     ATTR_BATTERY_LAST_REPORTED,
     ATTR_BATTERY_LAST_REPORTED_DAYS,
     ATTR_BATTERY_LAST_REPORTED_LEVEL,
-    ATTR_BATTERY_LEVEL,
-    ATTR_BATTERY_LOW,
-    ATTR_BATTERY_LOW_THRESHOLD,
-    ATTR_BATTERY_QUANTITY,
-    ATTR_BATTERY_THRESHOLD_REMINDER,
-    ATTR_BATTERY_TYPE,
-    ATTR_BATTERY_TYPE_AND_QUANTITY,
     ATTR_DEVICE_ID,
-    ATTR_DEVICE_NAME,
-    ATTR_PREVIOUS_BATTERY_LEVEL,
     ATTR_SOURCE_ENTITY_ID,
     DOMAIN,
     EVENT_BATTERY_NOT_REPLACED,
@@ -53,6 +44,14 @@ from .const import (
 from .coordinator import BatteryNotesConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _response_item(data: dict[str, Any]) -> dict[str, Any]:
+    """Return event data as a service response item, datetimes as ISO strings."""
+    return {
+        key: value.isoformat() if isinstance(value, datetime) else value
+        for key, value in data.items()
+    }
 
 
 @callback
@@ -91,7 +90,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
     )
 
 
-async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa: PLR0912
+async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:
     """Handle the service call."""
     device_id = call.data.get(ATTR_DEVICE_ID, "")
     source_entity_id = call.data.get(ATTR_SOURCE_ENTITY_ID, "")
@@ -140,18 +139,12 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa
                     )
 
                     call.hass.bus.async_fire(
-                        EVENT_BATTERY_REPLACED,
-                        {
-                            ATTR_DEVICE_ID: coordinator.device_id or "",
-                            ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
-                            ATTR_AREA_NAME: coordinator.area_name,
-                            ATTR_DEVICE_NAME: coordinator.device_name,
-                            ATTR_BATTERY_TYPE_AND_QUANTITY: (
-                                coordinator.battery_type_and_quantity
-                            ),
-                            ATTR_BATTERY_TYPE: coordinator.battery_type,
-                            ATTR_BATTERY_QUANTITY: coordinator.battery_quantity,
-                        },
+                        EVENT_BATTERY_REPLACED, coordinator.event_data()
+                    )
+
+                    _LOGGER.debug(
+                        "Raised event battery replaced %s",
+                        coordinator.device_id,
                     )
 
                     return None
@@ -170,41 +163,38 @@ async def _async_battery_replaced(call: ServiceCall) -> ServiceResponse:  # noqa
             translation_placeholders={"source": device_id},
         )
 
-    # Check if device_id exists in any sub config entry
-    for config_entry in call.hass.config_entries.async_loaded_entries(DOMAIN):
-        battery_notes_config_entry = cast(BatteryNotesConfigEntry, config_entry)
-        if not battery_notes_config_entry.runtime_data.subentry_coordinators:
-            continue
+    # Entity notes also store their entity's device, prefer the note for the device
+    matches = [
+        coordinator
+        for config_entry in call.hass.config_entries.async_loaded_entries(DOMAIN)
+        for coordinator in (
+            cast(
+                BatteryNotesConfigEntry, config_entry
+            ).runtime_data.subentry_coordinators
+            or {}
+        ).values()
+        if not coordinator.is_orphaned and coordinator.device_id == device_id
+    ]
+    if matches:
+        coordinator = next(
+            (match for match in matches if not match.source_entity_id), matches[0]
+        )
+        coordinator.record_battery_replacement(datetime_replaced)
+        await coordinator.async_request_refresh()
 
-        for (
-            coordinator
-        ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
-            if not coordinator.is_orphaned and coordinator.device_id == device_id:
-                coordinator.record_battery_replacement(datetime_replaced)
-                await coordinator.async_request_refresh()
+        _LOGGER.debug(
+            "Device %s battery replaced on %s",
+            device_id,
+            str(datetime_replaced),
+        )
 
-                _LOGGER.debug(
-                    "Device %s battery replaced on %s",
-                    device_id,
-                    str(datetime_replaced),
-                )
+        call.hass.bus.async_fire(EVENT_BATTERY_REPLACED, coordinator.event_data())
 
-                call.hass.bus.async_fire(
-                    EVENT_BATTERY_REPLACED,
-                    {
-                        ATTR_DEVICE_ID: coordinator.device_id or "",
-                        ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
-                        ATTR_AREA_NAME: coordinator.area_name,
-                        ATTR_DEVICE_NAME: coordinator.device_name,
-                        ATTR_BATTERY_TYPE_AND_QUANTITY: (
-                            coordinator.battery_type_and_quantity
-                        ),
-                        ATTR_BATTERY_TYPE: coordinator.battery_type,
-                        ATTR_BATTERY_QUANTITY: coordinator.battery_quantity,
-                    },
-                )
-
-                return None
+        _LOGGER.debug(
+            "Raised event battery replaced %s",
+            coordinator.device_id,
+        )
+        return None
 
     raise HomeAssistantError(
         translation_domain=DOMAIN,
@@ -219,6 +209,7 @@ async def _async_battery_last_replaced(call: ServiceCall) -> ServiceResponse:
     raise_events = call.data.get(SERVICE_DATA_RAISE_EVENTS, True)
 
     entity_registry = er.async_get(call.hass)
+
     return_items: list[dict[str, Any]] = []
 
     for config_entry in call.hass.config_entries.async_loaded_entries(DOMAIN):
@@ -230,6 +221,7 @@ async def _async_battery_last_replaced(call: ServiceCall) -> ServiceResponse:
             coordinator
         ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
             if not coordinator.is_orphaned and coordinator.last_replaced:
+                # Skip if last replaced sensor is disabled
                 last_replaced_entity_id = entity_registry.async_get_entity_id(
                     "sensor",
                     DOMAIN,
@@ -249,50 +241,23 @@ async def _async_battery_last_replaced(call: ServiceCall) -> ServiceResponse:
                 time_since_last_replaced = dt_util.utcnow() - coordinator.last_replaced
 
                 if time_since_last_replaced.days > days_last_replaced:
-                    if raise_events:
-                        call.hass.bus.async_fire(
-                            EVENT_BATTERY_NOT_REPLACED,
-                            {
-                                ATTR_DEVICE_ID: coordinator.device_id or "",
-                                ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id
-                                or "",
-                                ATTR_AREA_NAME: coordinator.area_name,
-                                ATTR_DEVICE_NAME: coordinator.device_name,
-                                ATTR_BATTERY_TYPE_AND_QUANTITY: (
-                                    coordinator.battery_type_and_quantity
-                                ),
-                                ATTR_BATTERY_TYPE: coordinator.battery_type,
-                                ATTR_BATTERY_QUANTITY: coordinator.battery_quantity,
-                                ATTR_BATTERY_LAST_REPORTED: coordinator.last_reported,
-                                ATTR_BATTERY_LAST_REPORTED_LEVEL: (
-                                    coordinator.last_reported_level
-                                ),
-                                ATTR_BATTERY_LAST_REPLACED: coordinator.last_replaced,
-                                ATTR_BATTERY_LAST_REPLACED_DAYS: time_since_last_replaced.days,
-                            },
-                        )
-
-                    return_items.append(
+                    data = coordinator.event_data(
                         {
-                            ATTR_DEVICE_ID: coordinator.device_id or "",
-                            ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
-                            ATTR_DEVICE_NAME: coordinator.device_name,
-                            ATTR_AREA_NAME: coordinator.area_name,
-                            ATTR_BATTERY_TYPE_AND_QUANTITY: (
-                                coordinator.battery_type_and_quantity
-                            ),
-                            ATTR_BATTERY_TYPE: coordinator.battery_type,
-                            ATTR_BATTERY_QUANTITY: coordinator.battery_quantity,
-                            ATTR_BATTERY_LAST_REPORTED: coordinator.last_reported.isoformat()
-                            if coordinator.last_reported
-                            else None,
-                            ATTR_BATTERY_LAST_REPORTED_LEVEL: (
-                                coordinator.last_reported_level
-                            ),
-                            ATTR_BATTERY_LAST_REPLACED: coordinator.last_replaced.isoformat(),
+                            ATTR_BATTERY_LAST_REPORTED: coordinator.last_reported,
+                            ATTR_BATTERY_LAST_REPORTED_LEVEL: coordinator.last_reported_level,
+                            ATTR_BATTERY_LAST_REPLACED: coordinator.last_replaced,
                             ATTR_BATTERY_LAST_REPLACED_DAYS: time_since_last_replaced.days,
                         }
                     )
+                    if raise_events:
+                        call.hass.bus.async_fire(EVENT_BATTERY_NOT_REPLACED, data)
+                        _LOGGER.debug(
+                            "Raised event device %s battery not replaced since %s",
+                            coordinator.device_id,
+                            str(coordinator.last_replaced),
+                        )
+
+                    return_items.append(_response_item(data))
 
     if call.return_response:
         return {"check_battery_last_replaced": cast(Any, return_items)}
@@ -327,59 +292,27 @@ async def _async_battery_last_reported(call: ServiceCall) -> ServiceResponse:
                     if time_since_last_reported is not None
                     else None
                 )
-                last_reported_iso = (
-                    coordinator.last_reported.isoformat()
-                    if coordinator.last_reported is not None
-                    else None
-                )
                 if (
                     time_since_last_reported is None
                     or time_since_last_reported.days > days_last_reported
                 ):
-                    if raise_events:
-                        call.hass.bus.async_fire(
-                            EVENT_BATTERY_NOT_REPORTED,
-                            {
-                                ATTR_DEVICE_ID: coordinator.device_id or "",
-                                ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id
-                                or "",
-                                ATTR_AREA_NAME: coordinator.area_name,
-                                ATTR_DEVICE_NAME: coordinator.device_name,
-                                ATTR_BATTERY_TYPE_AND_QUANTITY: (
-                                    coordinator.battery_type_and_quantity
-                                ),
-                                ATTR_BATTERY_TYPE: coordinator.battery_type,
-                                ATTR_BATTERY_QUANTITY: coordinator.battery_quantity,
-                                ATTR_BATTERY_LAST_REPORTED: coordinator.last_reported,
-                                ATTR_BATTERY_LAST_REPORTED_DAYS: last_reported_days,
-                                ATTR_BATTERY_LAST_REPORTED_LEVEL: (
-                                    coordinator.last_reported_level
-                                ),
-                                ATTR_BATTERY_LAST_REPLACED: coordinator.last_replaced,
-                            },
-                        )
-
-                    return_items.append(
+                    data = coordinator.event_data(
                         {
-                            ATTR_DEVICE_ID: coordinator.device_id or "",
-                            ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
-                            ATTR_DEVICE_NAME: coordinator.device_name,
-                            ATTR_AREA_NAME: coordinator.area_name,
-                            ATTR_BATTERY_TYPE_AND_QUANTITY: (
-                                coordinator.battery_type_and_quantity
-                            ),
-                            ATTR_BATTERY_TYPE: coordinator.battery_type,
-                            ATTR_BATTERY_QUANTITY: coordinator.battery_quantity,
-                            ATTR_BATTERY_LAST_REPORTED: last_reported_iso,
+                            ATTR_BATTERY_LAST_REPORTED: coordinator.last_reported,
                             ATTR_BATTERY_LAST_REPORTED_DAYS: last_reported_days,
-                            ATTR_BATTERY_LAST_REPORTED_LEVEL: (
-                                coordinator.last_reported_level
-                            ),
-                            ATTR_BATTERY_LAST_REPLACED: coordinator.last_replaced.isoformat()
-                            if coordinator.last_replaced
-                            else None,
+                            ATTR_BATTERY_LAST_REPORTED_LEVEL: coordinator.last_reported_level,
+                            ATTR_BATTERY_LAST_REPLACED: coordinator.last_replaced,
                         }
                     )
+                    if raise_events:
+                        call.hass.bus.async_fire(EVENT_BATTERY_NOT_REPORTED, data)
+                        _LOGGER.debug(
+                            "Raised event device %s not reported since %s",
+                            coordinator.device_id,
+                            str(coordinator.last_reported),
+                        )
+
+                    return_items.append(_response_item(data))
 
     if call.return_response:
         return {"check_battery_last_reported": cast(Any, return_items)}
@@ -401,53 +334,18 @@ async def _async_battery_low(call: ServiceCall) -> ServiceResponse:
             coordinator
         ) in battery_notes_config_entry.runtime_data.subentry_coordinators.values():
             if not coordinator.is_orphaned and coordinator.battery_low is True:
-                if raise_events:
-                    call.hass.bus.async_fire(
-                        EVENT_BATTERY_THRESHOLD,
-                        {
-                            ATTR_DEVICE_ID: coordinator.device_id or "",
-                            ATTR_DEVICE_NAME: coordinator.device_name,
-                            ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
-                            ATTR_AREA_NAME: coordinator.area_name,
-                            ATTR_BATTERY_LOW: coordinator.battery_low,
-                            ATTR_BATTERY_LOW_THRESHOLD: coordinator.battery_low_threshold,
-                            ATTR_BATTERY_TYPE_AND_QUANTITY: (
-                                coordinator.battery_type_and_quantity
-                            ),
-                            ATTR_BATTERY_TYPE: coordinator.battery_type,
-                            ATTR_BATTERY_QUANTITY: coordinator.battery_quantity,
-                            ATTR_BATTERY_LEVEL: coordinator.rounded_battery_level,
-                            ATTR_PREVIOUS_BATTERY_LEVEL: (
-                                coordinator.rounded_previous_battery_level
-                            ),
-                            ATTR_BATTERY_LAST_REPLACED: coordinator.last_replaced,
-                            ATTR_BATTERY_THRESHOLD_REMINDER: True,
-                        },
-                    )
-
-                return_items.append(
-                    {
-                        ATTR_DEVICE_ID: coordinator.device_id or "",
-                        ATTR_DEVICE_NAME: coordinator.device_name,
-                        ATTR_SOURCE_ENTITY_ID: coordinator.source_entity_id or "",
-                        ATTR_AREA_NAME: coordinator.area_name,
-                        ATTR_BATTERY_LOW: coordinator.battery_low,
-                        ATTR_BATTERY_LOW_THRESHOLD: coordinator.battery_low_threshold,
-                        ATTR_BATTERY_TYPE_AND_QUANTITY: (
-                            coordinator.battery_type_and_quantity
-                        ),
-                        ATTR_BATTERY_TYPE: coordinator.battery_type,
-                        ATTR_BATTERY_QUANTITY: coordinator.battery_quantity,
-                        ATTR_BATTERY_LEVEL: coordinator.rounded_battery_level,
-                        ATTR_PREVIOUS_BATTERY_LEVEL: (
-                            coordinator.rounded_previous_battery_level
-                        ),
-                        ATTR_BATTERY_LAST_REPLACED: coordinator.last_replaced.isoformat()
-                        if coordinator.last_replaced
-                        else None,
-                        ATTR_BATTERY_THRESHOLD_REMINDER: True,
-                    }
+                data = coordinator.battery_level_event_data(
+                    coordinator.rounded_battery_level,
+                    coordinator.rounded_previous_battery_level,
+                    reminder=True,
                 )
+                if raise_events:
+                    call.hass.bus.async_fire(EVENT_BATTERY_THRESHOLD, data)
+                    _LOGGER.debug(
+                        "Raised event device %s battery low",
+                        coordinator.device_id,
+                    )
+                return_items.append(_response_item(data))
 
     if call.return_response:
         return {"check_battery_battery_low": cast(Any, return_items)}
