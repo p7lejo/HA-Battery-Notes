@@ -650,6 +650,11 @@
             "battery_type": "CR2450"
         },
         {
+            "manufacturer": "_TZE200_jhhskent",
+            "model": "TS0301",
+            "battery_type": "Rechargeable"
+        },
+        {
             "manufacturer": "_TZE200_kb5noeto",
             "model": "TS0601",
             "battery_type": "AAA",
@@ -1283,6 +1288,11 @@
         },
         {
             "manufacturer": "APC",
+            "model": "Back-UPS RS 700G",
+            "battery_type": "APCRBC17"
+        },
+        {
+            "manufacturer": "APC",
             "model": "Back-UPS RS 900G",
             "hw_version": "879.L4 .I USB FW:L4",
             "battery_type": "APCRBC123"
@@ -1696,7 +1706,6 @@
             "manufacturer": "Aqara",
             "model": "Presence sensor FP300",
             "model_id": "PS-S04D",
-            "hw_version": "0.0.0_5234",
             "battery_type": "CR2450",
             "battery_quantity": 2
         },
@@ -1804,6 +1813,12 @@
             "manufacturer": "Aqara",
             "model": "SVD-C02",
             "hw_version": "1.1",
+            "battery_type": "AA",
+            "battery_quantity": 6
+        },
+        {
+            "manufacturer": "Aqara",
+            "model": "SVD-C03/SVD-C04",
             "battery_type": "AA",
             "battery_quantity": 6
         },
@@ -2232,6 +2247,13 @@
         {
             "manufacturer": "AVATTO",
             "model": "ME167",
+            "battery_type": "AA",
+            "battery_quantity": 2
+        },
+        {
+            "manufacturer": "AVATTO",
+            "model": "Thermostatic radiator valve",
+            "model_id": "TRV06_1b",
             "battery_type": "AA",
             "battery_quantity": 2
         },
@@ -2868,8 +2890,7 @@
             "manufacturer": "Develco",
             "model": "Smoke detector with siren",
             "model_id": "SMSZB-120",
-            "hw_version": "5.0.2",
-            "battery_type": "CR123"
+            "battery_type": "CR123A"
         },
         {
             "manufacturer": "Develco",
@@ -3144,7 +3165,7 @@
         },
         {
             "manufacturer": "Ecowitt",
-            "model": "wh51",
+            "model": "wh52",
             "battery_type": "AA"
         },
         {
@@ -3998,7 +4019,6 @@
         {
             "manufacturer": "EQ-3",
             "model": "HmIP-WKP",
-            "hw_version": "1.0.12",
             "battery_type": "AAA",
             "battery_quantity": 2
         },
@@ -4445,6 +4465,11 @@
         },
         {
             "manufacturer": "Fakro",
+            "model": "ARF Z-Wave Solar",
+            "battery_type": "Rechargeable"
+        },
+        {
+            "manufacturer": "Fakro",
             "model": "ARZ Z-Wave Solar",
             "battery_type": "Rechargeable"
         },
@@ -4479,13 +4504,28 @@
         },
         {
             "manufacturer": "Fibargroup",
+            "model": "FGCD-001",
+            "battery_type": "CR123A"
+        },
+        {
+            "manufacturer": "Fibargroup",
             "model": "FGCD001",
             "battery_type": "CR123A"
         },
         {
             "manufacturer": "Fibargroup",
+            "model": "FGDW-002",
+            "battery_type": "LS14250"
+        },
+        {
+            "manufacturer": "Fibargroup",
             "model": "FGDW002",
             "battery_type": "LS14250"
+        },
+        {
+            "manufacturer": "Fibargroup",
+            "model": "FGFS-101",
+            "battery_type": "CR123A"
         },
         {
             "manufacturer": "Fibargroup",
@@ -4499,8 +4539,18 @@
         },
         {
             "manufacturer": "Fibargroup",
+            "model": "FGKF-601",
+            "battery_type": "CR2450"
+        },
+        {
+            "manufacturer": "Fibargroup",
             "model": "FGKF601",
             "battery_type": "CR2450"
+        },
+        {
+            "manufacturer": "Fibargroup",
+            "model": "FGMS-001",
+            "battery_type": "CR123A"
         },
         {
             "manufacturer": "Fibargroup",
@@ -4511,6 +4561,11 @@
             "manufacturer": "Fibargroup",
             "model": "FGPB-101",
             "battery_type": "ER14250"
+        },
+        {
+            "manufacturer": "Fibargroup",
+            "model": "FGSD-002",
+            "battery_type": "CR123A"
         },
         {
             "manufacturer": "Fibargroup",
@@ -4877,6 +4932,12 @@
             "manufacturer": "Govee",
             "model": "H5105",
             "battery_type": "CR2450"
+        },
+        {
+            "manufacturer": "Govee",
+            "model": "H5108",
+            "battery_type": "AAA",
+            "battery_quantity": 2
         },
         {
             "manufacturer": "Govee",
@@ -5258,6 +5319,13 @@
             "battery_quantity": 2
         },
         {
+            "manufacturer": "Hobeiam",
+            "model": "Star Ring 4 Gang Switch",
+            "model_id": "ZG-101ZS",
+            "battery_type": "CR2032 / CR2016",
+            "battery_quantity": 2
+        },
+        {
             "manufacturer": "HOBEIAN",
             "model": "24Ghz human presence sensor",
             "model_id": "ZG-204ZK",
@@ -5293,6 +5361,12 @@
             "battery_quantity": 2
         },
         {
+            "manufacturer": "Hobeian",
+            "model": "Luminance door sensor",
+            "model_id": "ZG-102ZL",
+            "battery_type": "CR2032"
+        },
+        {
             "manufacturer": "HOBEIAN",
             "model": "Millimeter wave motion detection",
             "model_id": "ZG-204ZV",
@@ -5305,6 +5379,13 @@
             "model": "Motion sensor",
             "model_id": "ZG-204Z",
             "battery_type": "CR2450"
+        },
+        {
+            "manufacturer": "HOBEIAN",
+            "model": "PIR 24Ghz human presence sensor",
+            "model_id": "ZG-204ZM",
+            "battery_type": "AAA",
+            "battery_quantity": 2
         },
         {
             "manufacturer": "HOBEIAN",
@@ -6008,6 +6089,13 @@
             "model_id": "32774",
             "hw_version": "P2.0",
             "battery_type": "AAA",
+            "battery_quantity": 2
+        },
+        {
+            "manufacturer": "IKEA of Sweden",
+            "model": "LILJEBAGGE radiator thermostat",
+            "model_id": "20480",
+            "battery_type": "AA",
             "battery_quantity": 2
         },
         {
@@ -7804,6 +7892,12 @@
         },
         {
             "manufacturer": "Philio Technology Corp",
+            "model": "PSE04",
+            "battery_type": "AA",
+            "battery_quantity": 4
+        },
+        {
+            "manufacturer": "Philio Technology Corp",
             "model": "PST02A",
             "battery_type": "CR123A"
         },
@@ -8596,6 +8690,12 @@
         {
             "manufacturer": "Schlage",
             "model": "BE489WB",
+            "battery_type": "AA",
+            "battery_quantity": 4
+        },
+        {
+            "manufacturer": "Schlage",
+            "model": "BE489WB2",
             "battery_type": "AA",
             "battery_quantity": 4
         },
@@ -10156,6 +10256,12 @@
             "manufacturer": "ThermoPro",
             "model": "TP357S",
             "battery_type": "AAA"
+        },
+        {
+            "manufacturer": "ThermoPro",
+            "model": "TP358S",
+            "battery_type": "AAA",
+            "battery_quantity": 2
         },
         {
             "manufacturer": "Thermoworks",
@@ -12210,6 +12316,11 @@
             "model": "Viking 02035,02038",
             "battery_type": "AAA",
             "battery_quantity": 2
+        },
+        {
+            "manufacturer": "Vision Security",
+            "model": "ZD2102",
+            "battery_type": "CR123A"
         },
         {
             "manufacturer": "Vision Security",

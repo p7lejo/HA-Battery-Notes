@@ -1,0 +1,143 @@
+name: Upstream 3.8.1 validation
+
+on:
+  push:
+    branches:
+      - upstream/3.8.1
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Upstream test suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Run test suite
+        run: uv run --no-sync pytest tests -v
+
+  lint:
+    name: Upstream lint and typing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Ruff
+        run: |
+          uv run --no-sync ruff check .
+          uv run --no-sync ruff format --check .
+
+      - name: Mypy
+        run: uv run --no-sync mypy custom_components/battery_notes/ --check-untyped-defs
+
+  merge-diagnostic:
+    name: Check merge against fork main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout upstream candidate
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Fetch fork main
+        run: git fetch origin main
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Attempt merge without changing branch
+        id: merge
+        shell: bash
+        run: |
+          set +e
+          git merge --no-commit --no-ff origin/main
+          result=$?
+          if [ "$result" -eq 0 ]; then
+            echo "status=clean" >> "$GITHUB_OUTPUT"
+            echo "The upstream candidate merges cleanly with fork main."
+            echo "## Merge check" >> "$GITHUB_STEP_SUMMARY"
+            echo "No conflicts: upstream 3.8.1 merges cleanly with fork main." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "status=conflicts" >> "$GITHUB_OUTPUT"
+            echo "Conflicting paths:"
+            git diff --name-only --diff-filter=U | tee conflicts.txt
+            {
+              echo "## Merge conflicts with fork main"
+              echo
+              if [ -s conflicts.txt ]; then
+                sed 's/^/- /' conflicts.txt
+              else
+                echo "Merge failed for a reason other than unresolved paths."
+                git status --short
+              fi
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "$result" -ne 0 ]; then
+            git merge --abort 2>/dev/null || true
+          fi
+          exit 0
+
+      - name: Install uv
+        if: steps.merge.outputs.status == 'clean'
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        if: steps.merge.outputs.status == 'clean'
+        run: uv python install
+
+      - name: Install locked dependencies
+        if: steps.merge.outputs.status == 'clean'
+        run: uv sync --locked
+
+      - name: Test merged fork integration
+        if: steps.merge.outputs.status == 'clean'
+        run: uv run --no-sync pytest tests -v
+
+      - name: Lint merged fork integration
+        if: steps.merge.outputs.status == 'clean'
+        run: |
+          uv run --no-sync ruff check .
+          uv run --no-sync ruff format --check .
+          uv run --no-sync mypy custom_components/battery_notes/ --check-untyped-defs
+
+      - name: Upload conflict report
+        if: steps.merge.outputs.status == 'conflicts'
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-3.8.1-merge-conflicts
+          path: conflicts.txt
+          if-no-files-found: ignore
