@@ -104,8 +104,35 @@ jobs:
               fi
             } >> "$GITHUB_STEP_SUMMARY"
           fi
-          git merge --abort 2>/dev/null || true
+          if [ "$result" -ne 0 ]; then
+            git merge --abort 2>/dev/null || true
+          fi
           exit 0
+
+      - name: Install uv
+        if: steps.merge.outputs.status == 'clean'
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        if: steps.merge.outputs.status == 'clean'
+        run: uv python install
+
+      - name: Install locked dependencies
+        if: steps.merge.outputs.status == 'clean'
+        run: uv sync --locked
+
+      - name: Test merged fork integration
+        if: steps.merge.outputs.status == 'clean'
+        run: uv run --no-sync pytest tests -v
+
+      - name: Lint merged fork integration
+        if: steps.merge.outputs.status == 'clean'
+        run: |
+          uv run --no-sync ruff check .
+          uv run --no-sync ruff format --check .
+          uv run --no-sync mypy custom_components/battery_notes/ --check-untyped-defs
 
       - name: Upload conflict report
         if: steps.merge.outputs.status == 'conflicts'
