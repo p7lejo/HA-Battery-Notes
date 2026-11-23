@@ -72,6 +72,11 @@ jobs:
       - name: Fetch fork main
         run: git fetch origin main
 
+      - name: Configure Git identity
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Attempt merge without changing branch
         id: merge
         shell: bash
@@ -82,6 +87,8 @@ jobs:
           if [ "$result" -eq 0 ]; then
             echo "status=clean" >> "$GITHUB_OUTPUT"
             echo "The upstream candidate merges cleanly with fork main."
+            echo "## Merge check" >> "$GITHUB_STEP_SUMMARY"
+            echo "No conflicts: upstream 3.8.1 merges cleanly with fork main." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "status=conflicts" >> "$GITHUB_OUTPUT"
             echo "Conflicting paths:"
@@ -93,6 +100,7 @@ jobs:
                 sed 's/^/- /' conflicts.txt
               else
                 echo "Merge failed for a reason other than unresolved paths."
+                git status --short
               fi
             } >> "$GITHUB_STEP_SUMMARY"
           fi
