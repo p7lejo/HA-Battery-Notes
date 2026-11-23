@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'zensical.toml'
+      - '.github/workflows/deploy_docs.yaml'
       - 'docs/**'
     branches:
       - main
