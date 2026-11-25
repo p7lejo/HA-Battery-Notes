@@ -76,8 +76,6 @@ class BatteryNotesSensorEntityDescription(
 ):
     """Describes Battery Notes sensor entity."""
 
-    unique_id_suffix: str
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -107,41 +105,41 @@ async def async_setup_entry(
 
         type_sensor_entity_description = BatteryNotesSensorEntityDescription(
             unique_id_suffix="_battery_type",
+            object_id_base="battery_type",
             key="battery_type",
             translation_key="battery_type",
             entity_category=EntityCategory.DIAGNOSTIC,
-            entity_type="sensor",
         )
 
         replacement_count_sensor_entity_description = (
             BatteryNotesSensorEntityDescription(
                 unique_id_suffix="_battery_replacement_count",
                 key="battery_replacement_count",
+                object_id_base="battery_replacement_count",
                 translation_key="battery_replacement_count",
                 entity_category=EntityCategory.DIAGNOSTIC,
                 state_class=SensorStateClass.TOTAL_INCREASING,
-                entity_type="sensor",
             )
         )
 
         last_replaced_sensor_entity_description = BatteryNotesSensorEntityDescription(
             unique_id_suffix="_battery_last_replaced",
+            object_id_base="battery_last_replaced",
             key="battery_last_replaced",
             translation_key="battery_last_replaced",
             entity_category=EntityCategory.DIAGNOSTIC,
             device_class=SensorDeviceClass.TIMESTAMP,
             entity_registry_enabled_default=domain_config.enable_replaced,
-            entity_type="sensor",
         )
 
         battery_plus_sensor_entity_description = BatteryNotesSensorEntityDescription(
             unique_id_suffix="_battery_plus",
+            object_id_base="battery_plus",
             key="battery_plus",
             translation_key="battery_plus",
             device_class=SensorDeviceClass.BATTERY,
             suggested_display_precision=0 if domain_config.round_battery else 1,
-            entity_type="sensor",
-            require_device=True,
+            allow_source_device_fallback=False,
         )
 
         entities = [
