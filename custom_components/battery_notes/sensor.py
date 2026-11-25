@@ -115,10 +115,10 @@ async def async_setup_entry(
             BatteryNotesSensorEntityDescription(
                 unique_id_suffix="_battery_replacement_count",
                 key="battery_replacement_count",
+                object_id_base="battery_replacement_count",
                 translation_key="battery_replacement_count",
                 entity_category=EntityCategory.DIAGNOSTIC,
                 state_class=SensorStateClass.TOTAL_INCREASING,
-                entity_type="sensor",
             )
         )
 
