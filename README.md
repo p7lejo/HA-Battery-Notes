@@ -20,7 +20,7 @@ The library makes adding battery notes easy, identifying the type of battery whe
 
 A battery+ sensor provides useful attributes for easy use in dashboards, the standard battery can optionally be hidden.
 
- **Notifications and automations**
+**Notifications and automations**
 
 Battery low, replaced and not reported are all exposed via triggers, events and actions, using these you can create your own automations to generate notifications or other actions, there are some predefined ones in [community](https://andrew-codechimp.github.io/HA-Battery-Notes/community).
 
