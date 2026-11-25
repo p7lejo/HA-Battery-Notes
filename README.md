@@ -1,12 +1,15 @@
+<!-- ha-marketplace:exclude-start -->
 # Battery Notes for Home Assistant
 
 [![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
-[![Downloads][download-latest-shield]]()
 [![HACS Installs][hacs-installs-shield]]()
+[![Downloads][download-latest-shield]]()
+[![Installs][marketplace-installs-shield]][hacs-install]
+[![marketplace][marketplacebadge]][marketplace]
 [![License][license-shield]](LICENSE)
-[![hacs][hacsbadge]][hacs]
 
+<!-- ha-marketplace:exclude-end -->
 Integration to add battery notes to a device or entity, with automatic discovery via a growing [battery library](library.md) for devices.
 
 Track the battery type, when the battery was replaced, when a battery is low based on device or global thresholds and also when a battery hasn't been reported for a while.
@@ -17,37 +20,44 @@ The library makes adding battery notes easy, identifying the type of battery whe
 
 A battery+ sensor provides useful attributes for easy use in dashboards, the standard battery can optionally be hidden.
 
-**Notifications and automations**
+ **Notifications and automations**
 
-Battery low, replaced and not reported are all exposed via events and actions, using these you can create your own automations to generate notifications or other actions, there are some predefined ones in [community](https://andrew-codechimp.github.io/HA-Battery-Notes/community).
+Battery low, replaced and not reported are all exposed via triggers, events and actions, using these you can create your own automations to generate notifications or other actions, there are some predefined ones in [community](https://andrew-codechimp.github.io/HA-Battery-Notes/community).
 
 ## Fork
-    Add a persistent battery replacement count for each tracked device/entity.
-    Record the time between consecutive battery replacements as the replacement interval.
-    Calculate the average battery lifetime from all recorded replacement intervals.
-    Persist replacement statistics in the existing storage data, including:
-        replacement count
-        latest replacement interval
-        average lifetime
-        accumulated lifetime data
-    Add a new battery_replacement_count sensor with appropriate long-term statistics support.
-    Expose the replacement interval and average lifetime as sensor attributes.
-    Update the replacement button/service to record a replacement event instead of only updating last_replaced.
-    Preserve existing last_replaced behavior and avoid counting replacements when historical data is loaded.
 
-<img width="402" height="367" alt="grafik" src="https://github.com/user-attachments/assets/0d56422b-f988-41d6-9807-ed516b1a6e8c" />
+This fork adds persistent battery replacement history and lifetime statistics:
+
+- Persistent battery replacement count for each tracked device or entity.
+- Time between consecutive battery replacements as the replacement interval.
+- Average battery lifetime calculated from recorded replacement intervals.
+- Replacement count, latest interval, average lifetime and accumulated lifetime data stored persistently.
+- A `battery_replacement_count` sensor with long-term statistics support.
+- Replacement interval and average lifetime exposed as sensor attributes.
+- The replacement button and service record a replacement event while preserving the existing `last_replaced` behavior.
+- Historical data loading does not increment the replacement count.
+
+<img width="402" height="367" alt="Battery replacement statistics" src="https://github.com/user-attachments/assets/0d56422b-f988-41d6-9807-ed516b1a6e8c" />
+
+
+_Please ⭐ this repo on [GitHub][repository] if you find it useful_
+
+_If you want to show your support please_
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/yellow_img.png)](https://www.buymeacoffee.com/codechimp)
+
+![Battery Notes](https://raw.githubusercontent.com/andrew-codechimp/ha-battery-notes/main/docs/assets/screenshot-device.png "Battery Notes")
 
 ![Discovery](https://raw.githubusercontent.com/andrew-codechimp/ha-battery-notes/main/docs/assets/screenshot-discovery.png "Device Discovery")
 
+<!-- ha-marketplace:exclude-start -->
 ## Installation
 
-### HACS Installation
+[![Open your Home Assistant instance and open a repository in the Marketplace.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=andrew-codechimp&repository=HA-Battery-Notes&category=Integration)
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=andrew-codechimp&repository=HA-Battery-Notes&category=Integration)
+Or search for `Battery Notes` in Marketplace/HACS and download it.
 
-Or search for `Battery Notes` in HACS and download it.
-
-**Restart Home Assistant**
+**Restart Home Assistant if using HACS**
 
 Add the Battery Notes integration
 
@@ -56,17 +66,18 @@ Add the Battery Notes integration
 Or go to Settings -> Devices & Services click "+ Add integration" and search for "Battery Notes"
 
 This will create the main Battery Notes integration service and discovery will start shortly afterwards, or you can add battery notes manually within the settings/integrations/Battery Notes page by using the Add Battery Note button.
+<!-- ha-marketplace:exclude-end -->
 
 ### Manual Installation
 
 <details>
 <summary>More Details</summary>
 
-- You should take the battery_notes.zip file from the latest [published release](https://github.com/andrew-codechimp/ha-battery-notes/releases).
-- To install, place the contents of `custom_components` into the `<config directory>/custom_components` folder of your Home Assistant installation.
-- Restart Home Assistant
-- In the HA UI go to Settings -> Devices & Services click "+ Add integration" and search for "Battery Notes"
-- This will create the main Battery Notes integration service and discovery will start shortly afterwards, or you can add battery notes manually within the settings/integrations/Battery Notes page by using the Add Battery Note button.
+- Download the `battery_notes.zip` file from the latest [published release](https://github.com/andrew-codechimp/HA-Battery-Notes/releases).
+- Place the contents of `custom_components` into the `<config directory>/custom_components` folder of your Home Assistant installation.
+- Restart Home Assistant.
+- In Home Assistant, go to Settings -> Devices & Services, select "+ Add integration" and search for "Battery Notes".
+
 </details>
 
 ## Docs
@@ -89,11 +100,6 @@ Using my companion integration [Fake Devices](https://github.com/andrew-codechim
 
 To add a new language translation to Battery Notes see [here](https://andrew-codechimp.github.io/HA-Battery-Notes/translations)
 
-## Contributions are welcome!
-
-If you want to contribute to this please read the [Contribution guidelines](CONTRIBUTING.md).
-
-
 ## Third party library usage
 
 The library relies on community contributions, it is open source under the MIT license and available for anyone to use in their project.
@@ -113,17 +119,20 @@ Thanks to everyone who has submitted devices to the library.
 <!---->
 
 [battery_notes]: https://github.com/andrew-codechimp/HA-Battery-Notes
+[releases-shield]: https://img.shields.io/github/release/andrew-codechimp/HA-Battery-Notes.svg?style=for-the-badge
+[releases]: https://github.com/andrew-codechimp/HA-Battery-Notes/releases
+[hacs-installs-shield]: https://img.shields.io/endpoint.svg?url=https%3A%2F%2Flauwbier.nl%2Fhacs%2Fbattery_notes&style=for-the-badge
 [commits-shield]: https://img.shields.io/github/commit-activity/y/andrew-codechimp/HA-Battery-Notes.svg?style=for-the-badge
 [commits]: https://github.com/andrew-codechimp/HA-Battery-Notes/commits/main
-[hacs]: https://github.com/hacs/integration
-[hacsbadge]: https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge
-[discord]: https://discord.gg/Qa5fW2R
-[discord-shield]: https://img.shields.io/discord/330944238910963714.svg?style=for-the-badge
+[marketplace]: https://home-assistant.io/integrations/marketplace
+[marketplacebadge]: https://img.shields.io/badge/Marketplace-Default-41BDF5.svg?style=for-the-badge
 [exampleimg]: example.png
 [forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg?style=for-the-badge
 [forum]: https://community.home-assistant.io/t/custom-component-battery-notes/613821
 [license-shield]: https://img.shields.io/github/license/andrew-codechimp/HA-Battery-Notes.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/release/andrew-codechimp/HA-Battery-Notes.svg?style=for-the-badge
-[releases]: https://github.com/andrew-codechimp/HA-Battery-Notes/releases
 [download-latest-shield]: https://img.shields.io/github/downloads/andrew-codechimp/ha-battery-notes/latest/total?style=for-the-badge
-[hacs-installs-shield]: https://img.shields.io/endpoint.svg?url=https%3A%2F%2Flauwbier.nl%2Fhacs%2Fbattery_notes&style=for-the-badge
+[repository]: https://github.com/andrew-codechimp/HA-Battery-Notes
+[marketplace-installs-shield]: https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json&query=%24.battery_notes.total&style=for-the-badge&label=Marketplace%20installs
+[marketplace-install]: https://my.home-assistant.io/redirect/marketplace_repository/?owner=andrew-codechimp&repository=battery_notes&category=integration
+
+[hacs-install]: https://my.home-assistant.io/redirect/hacs_repository/?owner=andrew-codechimp&repository=HA-Battery-Notes&category=Integration
